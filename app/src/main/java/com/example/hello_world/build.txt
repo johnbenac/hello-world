@@ -63,10 +63,11 @@ class AssistantViewModel(
     private val context: Context,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-    val latestPartialResult = mutableStateOf("")  // Add it here
+    val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
 
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, latestPartialResult = this.latestPartialResult)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -90,13 +91,18 @@ class AssistantViewModel(
         }
     }
 
+    private fun onAssistantResponse(response: String) {
+        // Add assistant message to the conversation state
+        _conversationMessages.add(ConversationMessage("Assistant", response))
+    }
+
     fun stopListening() {
 //        voiceTriggerDetector.stopListening()
         voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
 
-    fun onTriggerWordDetected() {
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
         _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
@@ -104,26 +110,10 @@ class AssistantViewModel(
         // Stop listening
         voiceTriggerDetector.stopListeningForever()
     
-        // Handle trigger word detection, for example, call textToSpeechService.speak("Response text")
-        textToSpeechService.speak("Response text") {
-            // Run startListening() on the main thread
-            Handler(Looper.getMainLooper()).post {
-                voiceTriggerDetector.startListening()
-            }
-        }
-    
-        // Get the transcription of the message received after the trigger word
-        val userMessage = "Transcription of the message received after the trigger word"
-    
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
-            sendUserMessageToOpenAi(userMessage)
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
-    }
-
-    fun onAssistantResponse(response: String) {
-        // Add assistant message to the conversation state
-        _conversationMessages.add(ConversationMessage("Assistant", response))
     }
 }``` 
 ```ConversationMessage.kt``` 
@@ -298,7 +288,9 @@ import com.example.hello_world.OpenAiApiResponse
 
 data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
 
-data class OpenAiApiChoice(val text: String)``` 
+data class OpenAiApiChoice(val message: OpenAiApiMessage)
+
+data class OpenAiApiMessage(val role: String, val content: String)``` 
 ```OpenAiApiService.kt``` 
 package com.example.hello_world
 import android.util.Log
@@ -380,7 +372,7 @@ class OpenAiApiService(private val apiKey: String) {
                     val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
                     val apiResponse = jsonAdapter.fromJson(responseBody)
             
-                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.text ?: ""))
+                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.message?.content ?: ""))
                 }
             }
         })
@@ -411,9 +403,9 @@ import androidx.compose.runtime.MutableState
 class VoiceTriggerDetector(
     private val context: Context,
     private val triggerWord: String,
-    private val onTriggerWordDetected: (() -> Unit),
+    private val onTriggerWordDetected: ((String) -> Unit),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val latestPartialResult: MutableState<String> // Add this line
+    private val latestPartialResult: MutableState<String?> // Add this line
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private var keepListening: Boolean = true
@@ -480,6 +472,9 @@ class VoiceTriggerDetector(
         Log.d("VoiceTriggerDetector", "Partial Results: $matches")
         matches?.let { processResults(it) }
     
+        // Set the latest partial result
+        latestPartialResult.value = matches?.firstOrNull()
+    
         // Restart listening if the trigger word is not detected and the flag is set to keep listening
         if (keepListening) {
             mainHandler.post { startListening() }
@@ -497,7 +492,8 @@ class VoiceTriggerDetector(
             if (result.contains(triggerWord, ignoreCase = true)) {
                 // Trigger word detected, handle the event here
                 Log.d("VoiceTriggerDetector", "log: Trigger word detected")
-                onTriggerWordDetected() // Call the callback function
+                val userMessage = result.substringAfter(triggerWord).trim() // Get the user message after the trigger word
+                onTriggerWordDetected(userMessage) // Pass the user message here
                 break
             }
         }

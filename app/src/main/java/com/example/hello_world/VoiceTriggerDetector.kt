@@ -14,9 +14,9 @@ import androidx.compose.runtime.MutableState
 class VoiceTriggerDetector(
     private val context: Context,
     private val triggerWord: String,
-    private val onTriggerWordDetected: (() -> Unit),
+    private val onTriggerWordDetected: ((String) -> Unit),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val latestPartialResult: MutableState<String> // Add this line
+    private val latestPartialResult: MutableState<String?> // Add this line
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private var keepListening: Boolean = true
@@ -81,9 +81,11 @@ class VoiceTriggerDetector(
     override fun onPartialResults(partialResults: Bundle) {
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         Log.d("VoiceTriggerDetector", "Partial Results: $matches")
-        matches?.let { processResults(it) }
     
-        // Restart listening if the trigger word is not detected and the flag is set to keep listening
+        // Set the latest partial result
+        latestPartialResult.value = matches?.firstOrNull()
+    
+        // Restart listening if the flag is set to keep listening
         if (keepListening) {
             mainHandler.post { startListening() }
         }
@@ -100,7 +102,8 @@ class VoiceTriggerDetector(
             if (result.contains(triggerWord, ignoreCase = true)) {
                 // Trigger word detected, handle the event here
                 Log.d("VoiceTriggerDetector", "log: Trigger word detected")
-                onTriggerWordDetected() // Call the callback function
+                val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces
+                onTriggerWordDetected(userMessage) // Pass the user message here
                 break
             }
         }

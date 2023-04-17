@@ -15,10 +15,11 @@ class AssistantViewModel(
     private val context: Context,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-    val latestPartialResult = mutableStateOf("")  // Add it here
+    val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
 
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, latestPartialResult = this.latestPartialResult)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -42,13 +43,18 @@ class AssistantViewModel(
         }
     }
 
+    private fun onAssistantResponse(response: String) {
+        // Add assistant message to the conversation state
+        _conversationMessages.add(ConversationMessage("Assistant", response))
+    }
+
     fun stopListening() {
 //        voiceTriggerDetector.stopListening()
         voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
 
-    fun onTriggerWordDetected() {
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
         _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
@@ -56,25 +62,9 @@ class AssistantViewModel(
         // Stop listening
         voiceTriggerDetector.stopListeningForever()
     
-        // Handle trigger word detection, for example, call textToSpeechService.speak("Response text")
-        textToSpeechService.speak("Response text") {
-            // Run startListening() on the main thread
-            Handler(Looper.getMainLooper()).post {
-                voiceTriggerDetector.startListening()
-            }
-        }
-    
-        // Get the transcription of the message received after the trigger word
-        val userMessage = "Transcription of the message received after the trigger word"
-    
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
-            sendUserMessageToOpenAi(userMessage)
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
-    }
-
-    fun onAssistantResponse(response: String) {
-        // Add assistant message to the conversation state
-        _conversationMessages.add(ConversationMessage("Assistant", response))
     }
 }
