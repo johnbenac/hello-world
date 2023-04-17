@@ -41,12 +41,12 @@ class OpenAiApiService(private val apiKey: String) {
             OpenAiApiRequest(
                 messages = messages,
                 temperature = 0.9,
-                max_tokens = 6,
+                max_tokens = 100,
                 top_p = 1,
                 frequency_penalty = 0.0,
-                presence_penalty = 0.6,
-                model = "gpt-4",
-                stream = true
+                presence_penalty = 0.1,
+                model = "gpt-3.5-turbo",
+                stream = false
             )
         )
         Log.d("OpenAiApiService", "API Request: $requestJson")
@@ -69,15 +69,16 @@ class OpenAiApiService(private val apiKey: String) {
     
             override fun onResponse(call: Call, response: Response) {
                 if (continuation.isCancelled) return
-    
+            
                 if (!response.isSuccessful) {
                     continuation.resumeWithException(IOException("Unexpected code $response"))
                 } else {
                     val responseBody = response.body?.string()
+                    Log.d("OpenAiApiService", "Received JSON: $responseBody") // Add this line to log the received JSON
                     val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
                     val apiResponse = jsonAdapter.fromJson(responseBody)
-    
-                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.text ?: ""))
+            
+                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.message?.content ?: ""))
                 }
             }
         })
