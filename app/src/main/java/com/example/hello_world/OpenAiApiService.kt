@@ -1,4 +1,5 @@
 package com.example.hello_world
+import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
@@ -48,6 +49,7 @@ class OpenAiApiService(private val apiKey: String) {
                 stream = true
             )
         )
+        Log.d("OpenAiApiService", "API Request: $requestJson")
     
         val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
     

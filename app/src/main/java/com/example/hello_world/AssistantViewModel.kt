@@ -15,8 +15,10 @@ class AssistantViewModel(
     private val context: Context,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
+    val latestPartialResult = mutableStateOf("")  // Add it here
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected)
+
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, latestPartialResult = this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages

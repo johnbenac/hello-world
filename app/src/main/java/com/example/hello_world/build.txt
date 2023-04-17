@@ -63,8 +63,10 @@ class AssistantViewModel(
     private val context: Context,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
+    val latestPartialResult = mutableStateOf("")  // Add it here
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected)
+
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, latestPartialResult = this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -299,6 +301,7 @@ data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
 data class OpenAiApiChoice(val text: String)``` 
 ```OpenAiApiService.kt``` 
 package com.example.hello_world
+import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
@@ -348,8 +351,8 @@ class OpenAiApiService(private val apiKey: String) {
                 stream = true
             )
         )
+        Log.d("OpenAiApiService", "API Request: $requestJson")
     
-        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(OpenAiApiRequest(messages))
         val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
     
         val request = Request.Builder()
@@ -375,7 +378,7 @@ class OpenAiApiService(private val apiKey: String) {
                     val responseBody = response.body?.string()
                     val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
                     val apiResponse = jsonAdapter.fromJson(responseBody)
-
+    
                     continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.text ?: ""))
                 }
             }
@@ -401,13 +404,15 @@ import android.os.Bundle
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.runtime.MutableState
 
 
 class VoiceTriggerDetector(
     private val context: Context,
     private val triggerWord: String,
     private val onTriggerWordDetected: (() -> Unit),
-    private val mainHandler: Handler = Handler(Looper.getMainLooper())
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val latestPartialResult: MutableState<String> // Add this line
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private var keepListening: Boolean = true

@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         textToSpeechService = AndroidTextToSpeechService(this)
         openAiApiService = OpenAiApiService("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")
         assistantViewModel = AssistantViewModel(textToSpeechService, this, openAiApiService)
-        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected)
+        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected, latestPartialResult = assistantViewModel.latestPartialResult)
 
         setContent {
             AssistantScreen(assistantViewModel)

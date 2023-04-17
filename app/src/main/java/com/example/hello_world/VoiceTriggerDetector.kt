@@ -8,13 +8,15 @@ import android.os.Bundle
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.runtime.MutableState
 
 
 class VoiceTriggerDetector(
     private val context: Context,
     private val triggerWord: String,
     private val onTriggerWordDetected: (() -> Unit),
-    private val mainHandler: Handler = Handler(Looper.getMainLooper())
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val latestPartialResult: MutableState<String> // Add this line
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private var keepListening: Boolean = true
