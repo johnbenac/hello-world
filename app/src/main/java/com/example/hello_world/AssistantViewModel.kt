@@ -1,9 +1,9 @@
+package com.example.hello_world
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 
 class AssistantViewModel(
-    private val voiceTriggerDetector: VoiceTriggerDetector,
     private val textToSpeechService: TextToSpeechService
 ) : ViewModel() {
 
@@ -14,12 +14,12 @@ class AssistantViewModel(
     val isListening: Boolean get() = _isListening.value
 
     fun startListening() {
-        voiceTriggerDetector.startListening()
+//        voiceTriggerDetector.startListening()
         _isListening.value = true
     }
 
     fun stopListening() {
-        voiceTriggerDetector.stopListening()
+//        voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
 

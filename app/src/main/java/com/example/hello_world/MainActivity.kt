@@ -1,3 +1,5 @@
+package com.example.hello_world
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -13,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.hello_world.ui.theme.HelloworldTheme
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -27,19 +28,19 @@ import androidx.lifecycle.ViewModel
 
 
 
-data class ConversationMessage(val sender: String, val message: String)
+// data class ConversationMessage(val sender: String, val message: String)
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var voiceTriggerDetector: VoiceTriggerDetector
     private lateinit var textToSpeechService: TextToSpeechService
     private lateinit var assistantViewModel: AssistantViewModel
+    private lateinit var voiceTriggerDetector: VoiceTriggerDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         textToSpeechService = AndroidTextToSpeechService(this)
-        assistantViewModel = AssistantViewModel(voiceTriggerDetector, textToSpeechService)
-        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey Assistant", assistantViewModel::onTriggerWordDetected)
+        assistantViewModel = AssistantViewModel(textToSpeechService)
+        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected)
 
         setContent {
             AssistantScreen(assistantViewModel)
