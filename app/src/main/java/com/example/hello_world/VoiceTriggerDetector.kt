@@ -6,13 +6,18 @@ import android.speech.SpeechRecognizer
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
 
 
-class VoiceTriggerDetector(private val context: Context,
-private val triggerWord: String,
-private val onTriggerWordDetected: (() -> Unit)
+class VoiceTriggerDetector(
+    private val context: Context,
+    private val triggerWord: String,
+    private val onTriggerWordDetected: (() -> Unit),
+    private val mainHandler: Handler = Handler(Looper.getMainLooper())
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    private var keepListening: Boolean = true
 
     init {
         speechRecognizer.setRecognitionListener(this)
@@ -29,6 +34,11 @@ private val onTriggerWordDetected: (() -> Unit)
 
     fun stopListening() {
         speechRecognizer.stopListening()
+    }
+
+    fun stopListeningForever() {
+        keepListening = false
+        stopListening()
     }
 
     override fun onReadyForSpeech(params: Bundle) {
@@ -56,22 +66,32 @@ private val onTriggerWordDetected: (() -> Unit)
     }
 
     override fun onResults(results: Bundle) {
-        // Handle the final recognition results
         val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         Log.d("VoiceTriggerDetector", "Final Results: $matches")
         matches?.let { processResults(it) }
+    
+        // Restart listening if the trigger word is not detected and the flag is set to keep listening
+        if (keepListening) {
+            mainHandler.post { startListening() }
+        }
     }
 
     override fun onPartialResults(partialResults: Bundle) {
-        // Handle partial recognition results
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         Log.d("VoiceTriggerDetector", "Partial Results: $matches")
         matches?.let { processResults(it) }
+    
+        // Restart listening if the trigger word is not detected and the flag is set to keep listening
+        if (keepListening) {
+            mainHandler.post { startListening() }
+        }
     }
 
     override fun onEvent(eventType: Int, params: Bundle) {
         // Handle any events that may occur during speech recognition
     }
+
+
 
     private fun processResults(matches: ArrayList<String>) {
         for (result in matches) {

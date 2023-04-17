@@ -1,4 +1,5 @@
 package com.example.hello_world
+import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -10,9 +11,7 @@ class AssistantViewModel(
     private val context: Context
 ) : ViewModel() {
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey") {
-        onTriggerWordDetected()
-    }
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -37,7 +36,14 @@ class AssistantViewModel(
         _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
+        // Stop listening
+        voiceTriggerDetector.stopListeningForever()
+    
         // Handle trigger word detection, for example, call textToSpeechService.speak("Response text")
+        textToSpeechService.speak("Response text") {
+            // Start listening again after the response is spoken
+            voiceTriggerDetector.startListening()
+        }
     }
 
     fun onAssistantResponse(response: String) {
