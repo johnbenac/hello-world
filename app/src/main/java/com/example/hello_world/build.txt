@@ -52,16 +52,19 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 
 class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
-    private val context: Context
+    private val context: Context,
+    private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
 
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey") {
-        onTriggerWordDetected()
-    }
+    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -73,6 +76,16 @@ class AssistantViewModel(
 //        voiceTriggerDetector.startListening()
         voiceTriggerDetector.startListening()
         _isListening.value = true
+    }
+
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+        val responseText = openAiApiService.sendMessage(userMessage)
+        onAssistantResponse(responseText)
+        textToSpeechService.speak(responseText) {
+            Handler(Looper.getMainLooper()).post {
+                voiceTriggerDetector.startListening()
+            }
+        }
     }
 
     fun stopListening() {
@@ -91,8 +104,18 @@ class AssistantViewModel(
     
         // Handle trigger word detection, for example, call textToSpeechService.speak("Response text")
         textToSpeechService.speak("Response text") {
-            // Start listening again after the response is spoken
-            voiceTriggerDetector.startListening()
+            // Run startListening() on the main thread
+            Handler(Looper.getMainLooper()).post {
+                voiceTriggerDetector.startListening()
+            }
+        }
+    
+        // Get the transcription of the message received after the trigger word
+        val userMessage = "Transcription of the message received after the trigger word"
+    
+        // Send the user message to OpenAI API and process the response
+        viewModelScope.launch {
+            sendUserMessageToOpenAi(userMessage)
         }
     }
 
@@ -142,16 +165,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textToSpeechService: TextToSpeechService
     private lateinit var assistantViewModel: AssistantViewModel
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector
+    private lateinit var openAiApiService: OpenAiApiService
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("MainActivity", "log: MainActivity opened")
+
         // Request audio recording permission
         requestAudioPermission()
 
         textToSpeechService = AndroidTextToSpeechService(this)
-        assistantViewModel = AssistantViewModel(textToSpeechService, this)
+        openAiApiService = OpenAiApiService("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")
+        assistantViewModel = AssistantViewModel(textToSpeechService, this, openAiApiService)
         voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected)
 
         setContent {
@@ -262,6 +288,98 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
         ) {
             Text(if (isListening) "Stop Listening" else "Start Listening")
         }
+    }
+}``` 
+```OpenAiApiResponse.kt``` 
+package com.example.hello_world
+import com.example.hello_world.OpenAiApiResponse
+
+data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
+
+data class OpenAiApiChoice(val text: String)``` 
+```OpenAiApiService.kt``` 
+package com.example.hello_world
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.IOException
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
+
+data class OpenAiMessage(val role: String, val content: String)
+
+data class OpenAiApiRequest(
+    val messages: List<OpenAiMessage>,
+    val temperature: Double,
+    val max_tokens: Int,
+    val top_p: Int,
+    val frequency_penalty: Double,
+    val presence_penalty: Double,
+    val model: String,
+    val stream: Boolean
+)
+
+class OpenAiApiService(private val apiKey: String) {
+    private val client = OkHttpClient()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+
+    suspend fun sendMessage(userMessage: String): String = suspendCancellableCoroutine { continuation ->
+        val messages = listOf(
+            OpenAiMessage("system", "you are an ai assistant named jake"),
+            OpenAiMessage("user", userMessage)
+        )
+    
+        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
+            OpenAiApiRequest(
+                messages = messages,
+                temperature = 0.9,
+                max_tokens = 6,
+                top_p = 1,
+                frequency_penalty = 0.0,
+                presence_penalty = 0.6,
+                model = "gpt-4",
+                stream = true
+            )
+        )
+    
+        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(OpenAiApiRequest(messages))
+        val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
+    
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(requestBody)
+            .build()
+    
+        val call = client.newCall(request)
+    
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isCancelled) return
+                continuation.resumeWithException(e)
+            }
+    
+            override fun onResponse(call: Call, response: Response) {
+                if (continuation.isCancelled) return
+    
+                if (!response.isSuccessful) {
+                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                } else {
+                    val responseBody = response.body?.string()
+                    val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
+                    val apiResponse = jsonAdapter.fromJson(responseBody)
+
+                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.text ?: ""))
+                }
+            }
+        })
     }
 }``` 
 ```TextToSpeechService.kt``` 

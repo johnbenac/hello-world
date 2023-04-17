@@ -1,0 +1,83 @@
+package com.example.hello_world
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.IOException
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
+
+data class OpenAiMessage(val role: String, val content: String)
+
+data class OpenAiApiRequest(
+    val messages: List<OpenAiMessage>,
+    val temperature: Double,
+    val max_tokens: Int,
+    val top_p: Int,
+    val frequency_penalty: Double,
+    val presence_penalty: Double,
+    val model: String,
+    val stream: Boolean
+)
+
+class OpenAiApiService(private val apiKey: String) {
+    private val client = OkHttpClient()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+
+    suspend fun sendMessage(userMessage: String): String = suspendCancellableCoroutine { continuation ->
+        val messages = listOf(
+            OpenAiMessage("system", "you are an ai assistant named jake"),
+            OpenAiMessage("user", userMessage)
+        )
+    
+        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
+            OpenAiApiRequest(
+                messages = messages,
+                temperature = 0.9,
+                max_tokens = 6,
+                top_p = 1,
+                frequency_penalty = 0.0,
+                presence_penalty = 0.6,
+                model = "gpt-4",
+                stream = true
+            )
+        )
+    
+        val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
+    
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(requestBody)
+            .build()
+    
+        val call = client.newCall(request)
+    
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isCancelled) return
+                continuation.resumeWithException(e)
+            }
+    
+            override fun onResponse(call: Call, response: Response) {
+                if (continuation.isCancelled) return
+    
+                if (!response.isSuccessful) {
+                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                } else {
+                    val responseBody = response.body?.string()
+                    val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
+                    val apiResponse = jsonAdapter.fromJson(responseBody)
+    
+                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.text ?: ""))
+                }
+            }
+        })
+    }
+}

@@ -4,11 +4,16 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 
 class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
-    private val context: Context
+    private val context: Context,
+    private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
 
     private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected)
@@ -23,6 +28,16 @@ class AssistantViewModel(
 //        voiceTriggerDetector.startListening()
         voiceTriggerDetector.startListening()
         _isListening.value = true
+    }
+
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+        val responseText = openAiApiService.sendMessage(userMessage)
+        onAssistantResponse(responseText)
+        textToSpeechService.speak(responseText) {
+            Handler(Looper.getMainLooper()).post {
+                voiceTriggerDetector.startListening()
+            }
+        }
     }
 
     fun stopListening() {
@@ -41,8 +56,18 @@ class AssistantViewModel(
     
         // Handle trigger word detection, for example, call textToSpeechService.speak("Response text")
         textToSpeechService.speak("Response text") {
-            // Start listening again after the response is spoken
-            voiceTriggerDetector.startListening()
+            // Run startListening() on the main thread
+            Handler(Looper.getMainLooper()).post {
+                voiceTriggerDetector.startListening()
+            }
+        }
+    
+        // Get the transcription of the message received after the trigger word
+        val userMessage = "Transcription of the message received after the trigger word"
+    
+        // Send the user message to OpenAI API and process the response
+        viewModelScope.launch {
+            sendUserMessageToOpenAi(userMessage)
         }
     }
 

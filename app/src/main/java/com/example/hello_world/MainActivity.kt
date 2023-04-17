@@ -34,16 +34,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textToSpeechService: TextToSpeechService
     private lateinit var assistantViewModel: AssistantViewModel
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector
+    private lateinit var openAiApiService: OpenAiApiService
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("MainActivity", "log: MainActivity opened")
+
         // Request audio recording permission
         requestAudioPermission()
 
         textToSpeechService = AndroidTextToSpeechService(this)
-        assistantViewModel = AssistantViewModel(textToSpeechService, this)
+        openAiApiService = OpenAiApiService("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")
+        assistantViewModel = AssistantViewModel(textToSpeechService, this, openAiApiService)
         voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected)
 
         setContent {
