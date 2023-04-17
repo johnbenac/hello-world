@@ -5,6 +5,8 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+
 
 class VoiceTriggerDetector(private val context: Context,
 private val triggerWord: String,
@@ -56,12 +58,14 @@ private val onTriggerWordDetected: (() -> Unit)
     override fun onResults(results: Bundle) {
         // Handle the final recognition results
         val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        Log.d("VoiceTriggerDetector", "Final Results: $matches")
         matches?.let { processResults(it) }
     }
 
     override fun onPartialResults(partialResults: Bundle) {
         // Handle partial recognition results
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        Log.d("VoiceTriggerDetector", "Partial Results: $matches")
         matches?.let { processResults(it) }
     }
 
@@ -73,6 +77,8 @@ private val onTriggerWordDetected: (() -> Unit)
         for (result in matches) {
             if (result.contains(triggerWord, ignoreCase = true)) {
                 // Trigger word detected, handle the event here
+                Log.d("VoiceTriggerDetector", "log: Trigger word detected")
+                onTriggerWordDetected() // Call the callback function
                 break
             }
         }
