@@ -82,7 +82,10 @@ class AssistantViewModel(
     }
 
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
-        val responseText = openAiApiService.sendMessage(userMessage)
+        // Add user message to the conversation state
+        _conversationMessages.add(ConversationMessage("User", userMessage))
+
+        val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
         textToSpeechService.speak(responseText) {
             Handler(Looper.getMainLooper()).post {
@@ -108,7 +111,7 @@ class AssistantViewModel(
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
         // Stop listening
-        voiceTriggerDetector.stopListeningForever()
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
     
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
@@ -294,6 +297,7 @@ data class OpenAiApiMessage(val role: String, val content: String)```
 ```OpenAiApiService.kt``` 
 package com.example.hello_world
 import android.util.Log
+import java.util.Locale
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
@@ -325,11 +329,12 @@ class OpenAiApiService(private val apiKey: String) {
     private val client = OkHttpClient()
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
-    suspend fun sendMessage(userMessage: String): String = suspendCancellableCoroutine { continuation ->
-        val messages = listOf(
-            OpenAiMessage("system", "you are an ai assistant named jake"),
-            OpenAiMessage("user", userMessage)
-        )
+    suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
+        val messages = mutableListOf(OpenAiMessage("system", "you are an ai assistant named jake"))
+
+        conversationHistory.forEach { message ->
+            messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
+        }
     
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(
@@ -470,12 +475,11 @@ class VoiceTriggerDetector(
     override fun onPartialResults(partialResults: Bundle) {
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         Log.d("VoiceTriggerDetector", "Partial Results: $matches")
-        matches?.let { processResults(it) }
     
         // Set the latest partial result
         latestPartialResult.value = matches?.firstOrNull()
     
-        // Restart listening if the trigger word is not detected and the flag is set to keep listening
+        // Restart listening if the flag is set to keep listening
         if (keepListening) {
             mainHandler.post { startListening() }
         }
@@ -492,7 +496,7 @@ class VoiceTriggerDetector(
             if (result.contains(triggerWord, ignoreCase = true)) {
                 // Trigger word detected, handle the event here
                 Log.d("VoiceTriggerDetector", "log: Trigger word detected")
-                val userMessage = result.substringAfter(triggerWord).trim() // Get the user message after the trigger word
+                val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces
                 onTriggerWordDetected(userMessage) // Pass the user message here
                 break
             }

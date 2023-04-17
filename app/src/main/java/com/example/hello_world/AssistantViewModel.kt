@@ -34,7 +34,10 @@ class AssistantViewModel(
     }
 
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
-        val responseText = openAiApiService.sendMessage(userMessage)
+        // Add user message to the conversation state
+        _conversationMessages.add(ConversationMessage("User", userMessage))
+
+        val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
         textToSpeechService.speak(responseText) {
             Handler(Looper.getMainLooper()).post {
@@ -56,11 +59,11 @@ class AssistantViewModel(
 
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
-        _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
+        // _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
         // Stop listening
-        voiceTriggerDetector.stopListeningForever()
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
     
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {

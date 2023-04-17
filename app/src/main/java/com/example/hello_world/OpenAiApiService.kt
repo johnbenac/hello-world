@@ -1,5 +1,6 @@
 package com.example.hello_world
 import android.util.Log
+import java.util.Locale
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Response
@@ -31,11 +32,12 @@ class OpenAiApiService(private val apiKey: String) {
     private val client = OkHttpClient()
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
-    suspend fun sendMessage(userMessage: String): String = suspendCancellableCoroutine { continuation ->
-        val messages = listOf(
-            OpenAiMessage("system", "you are an ai assistant named jake"),
-            OpenAiMessage("user", userMessage)
-        )
+    suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
+        val messages = mutableListOf(OpenAiMessage("system", "you are an ai assistant named jake"))
+
+        conversationHistory.forEach { message ->
+            messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
+        }
     
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(
