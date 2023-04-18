@@ -25,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.BoxWithConstraints
 
 
 
@@ -135,27 +136,45 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
     val conversationMessages = assistantViewModel.conversationMessages
     val isListening = assistantViewModel.isListening
 
-
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        ConversationScreen(messages = conversationMessages)
+        val maxHeight = constraints.maxHeight
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                if (isListening) {
-                    assistantViewModel.stopListening()
-                } else {
-                    assistantViewModel.startListening()
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp)))
+            ) {
+                items(conversationMessages) { message ->
+                    MessageCard(message)
                 }
-            },
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text(if (isListening) "Stop Listening" else "Start Listening")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = if (isListening) "Listening..." else "Not Listening",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) // Add this line to show the listening status
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    if (isListening) {
+                        assistantViewModel.stopListening()
+                    } else {
+                        assistantViewModel.startListening()
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(if (isListening) "Stop Listening" else "Start Listening")
+            }
         }
     }
 }

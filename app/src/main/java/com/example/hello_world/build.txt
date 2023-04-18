@@ -64,7 +64,8 @@ class AssistantViewModel(
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
     val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
-
+    val _isAssistantSpeaking = mutableStateOf(false)
+    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -89,9 +90,11 @@ class AssistantViewModel(
         onAssistantResponse(responseText)
         textToSpeechService.speak(responseText) {
             Handler(Looper.getMainLooper()).post {
+                _isAssistantSpeaking.value = false // Add this line
                 voiceTriggerDetector.startListening()
             }
         }
+        _isAssistantSpeaking.value = true // Add this line
     }
 
     private fun onAssistantResponse(response: String) {
@@ -107,7 +110,7 @@ class AssistantViewModel(
 
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
-        _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
+        // _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
         // Stop listening
@@ -151,6 +154,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.BoxWithConstraints
 
 
 
@@ -261,27 +265,38 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
     val conversationMessages = assistantViewModel.conversationMessages
     val isListening = assistantViewModel.isListening
 
-
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        ConversationScreen(messages = conversationMessages)
+        val maxHeight = constraints.maxHeight
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                if (isListening) {
-                    assistantViewModel.stopListening()
-                } else {
-                    assistantViewModel.startListening()
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp)))
+            ) {
+                items(conversationMessages) { message ->
+                    MessageCard(message)
                 }
-            },
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text(if (isListening) "Stop Listening" else "Start Listening")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    if (isListening) {
+                        assistantViewModel.stopListening()
+                    } else {
+                        assistantViewModel.startListening()
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(if (isListening) "Stop Listening" else "Start Listening")
+            }
         }
     }
 }``` 
@@ -479,10 +494,7 @@ class VoiceTriggerDetector(
         // Set the latest partial result
         latestPartialResult.value = matches?.firstOrNull()
     
-        // Restart listening if the flag is set to keep listening
-        if (keepListening) {
-            mainHandler.post { startListening() }
-        }
+        // Remove the startListening() call from here
     }
 
     override fun onEvent(eventType: Int, params: Bundle) {

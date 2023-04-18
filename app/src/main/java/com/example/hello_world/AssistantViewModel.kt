@@ -7,6 +7,7 @@ import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -14,9 +15,11 @@ class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
     private val context: Context,
     private val openAiApiService: OpenAiApiService
+    
 ) : ViewModel() {
     val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
-
+    val _isAssistantSpeaking = mutableStateOf(false)
+    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -26,6 +29,10 @@ class AssistantViewModel(
 
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
+
+    init {
+        monitorListeningState()
+    }
 
     fun startListening() {
 //        voiceTriggerDetector.startListening()
@@ -41,9 +48,11 @@ class AssistantViewModel(
         onAssistantResponse(responseText)
         textToSpeechService.speak(responseText) {
             Handler(Looper.getMainLooper()).post {
+                _isAssistantSpeaking.value = false // Add this line
                 voiceTriggerDetector.startListening()
             }
         }
+        _isAssistantSpeaking.value = true // Add this line
     }
 
     private fun onAssistantResponse(response: String) {
@@ -56,6 +65,20 @@ class AssistantViewModel(
         voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
+
+    private fun monitorListeningState() {
+        viewModelScope.launch {
+            while (true) {
+                delay(1000) // Check every 1 second
+                if (!_isAssistantSpeaking.value && !_isListening.value) {
+                    startListening()
+                } else if (_isAssistantSpeaking.value && _isListening.value) {
+                    stopListening()
+                }
+            }
+        }
+    }
+    
 
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state

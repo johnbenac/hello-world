@@ -85,10 +85,7 @@ class VoiceTriggerDetector(
         // Set the latest partial result
         latestPartialResult.value = matches?.firstOrNull()
     
-        // Restart listening if the flag is set to keep listening
-        if (keepListening) {
-            mainHandler.post { startListening() }
-        }
+        // Remove the startListening() call from here
     }
 
     override fun onEvent(eventType: Int, params: Bundle) {
