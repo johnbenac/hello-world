@@ -1,3 +1,4 @@
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.Button
@@ -32,22 +33,24 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
         )
 
         OutlinedTextField(
-            value = editedProfile.systemMessage,
+            value = editedProfile.systemMessage.takeIf { it.isNotEmpty() } ?: "I am an AI assistant.",
             onValueChange = { newValue -> settingsViewModel.updateEditedProfileSystemMessage(newValue) },
             label = { Text("System Message") },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+        Text("Max Length (20 to 2000)", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.maxLength.toFloat(),
             onValueChange = { newValue -> settingsViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
-            valueRange = 50f..300f,
+            valueRange = 20f..2000f,
             steps = 5,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+        Text("Temperature", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.temperature.toFloat(),
             onValueChange = { newValue -> settingsViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
@@ -57,6 +60,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+        Text("Frequency Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.frequencyPenalty.toFloat(),
             onValueChange = { newValue -> settingsViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
@@ -66,6 +70,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+        Text("Presence Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.presencePenalty.toFloat(),
             onValueChange = { newValue -> settingsViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
@@ -75,6 +80,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
+        Text("Model", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Row(modifier = Modifier.padding(horizontal = 16.dp)) {
             val models = listOf("gpt-3.5-turbo", "gpt-4")
             models.forEach { model ->
@@ -108,11 +114,15 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
             Button(onClick = {
                 settingsViewModel.saveEditedProfile()
                 onSettingsSaved()
+                Log.d("EditSettingsScreen", "Save button clicked")
             }) {
                 Text("Save")
             }
 
-            Button(onClick = onCancel) {
+            Button(onClick = {
+                onCancel()
+                Log.d("EditSettingsScreen", "Cancel button clicked")
+            }) {
                 Text("Cancel")
             }
         }

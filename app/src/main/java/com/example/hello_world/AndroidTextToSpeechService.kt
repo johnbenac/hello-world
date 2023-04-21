@@ -3,6 +3,7 @@ import android.content.Context
 import android.speech.tts.TextToSpeech
 import java.util.UUID
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import java.util.Locale
 
 class AndroidTextToSpeechService(private val context: Context) : TextToSpeechService, TextToSpeech.OnInitListener {
@@ -21,16 +22,21 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
 
     override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?) {
         val utteranceId = UUID.randomUUID().toString()
+
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) {
                 onStart?.invoke()
+                Log.d("AndroidTextToSpeechService", "log: onStart called")
             }
 
             override fun onDone(utteranceId: String) {
                 onFinish?.invoke()
+                Log.d("AndroidTextToSpeechService", "log: onDone called")
             }
 
-            override fun onError(utteranceId: String) {}
+            override fun onError(utteranceId: String) {
+                Log.d("AndroidTextToSpeechService", "log: onError called")
+            }
         })
 
         textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)

@@ -36,6 +36,7 @@ class AssistantViewModel(
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
+//        Log.d("AssistantViewModel", "log: startListening called 1")
     }
 
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
@@ -45,16 +46,30 @@ class AssistantViewModel(
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
         textToSpeechService.speak(responseText, onFinish = {
-            Handler(Looper.getMainLooper()).post {
+            mainHandler.post {
                 _isAssistantSpeaking.value = false
-                if (_isListening.value) {
-                    voiceTriggerDetector.startListening()
-                }
+//                if (_isListening.value) {
+                    startListening()
+                    Log.d("AssistantViewModel", "log: startListening called 2")
+//                }
             }
         }, onStart = {
-            voiceTriggerDetector.stopListening()
+            mainHandler.post {
+                stopListening()
+                Log.d("AssistantViewModel", "log: stopListening called 1")
+            }
         })
         _isAssistantSpeaking.value = true
+    }
+
+    private fun startPeriodicListeningCheck() {
+        mainHandler.postDelayed({
+            if (_isListening.value && !_isAssistantSpeaking.value) {
+//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening")
+                startListening()
+            }
+            startPeriodicListeningCheck()
+        }, 3000) // Check every 3 seconds
     }
 
     private fun onAssistantResponse(response: String) {
@@ -65,6 +80,7 @@ class AssistantViewModel(
 
     fun stopListening() {
         voiceTriggerDetector.stopListening()
+        Log.d("AssistantViewModel", "log: stopListening called 2")
         _isListening.value = false
     }
 
@@ -76,10 +92,15 @@ class AssistantViewModel(
     
         // Stop listening
         voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
+        Log.d("AssistantViewModel", "log: stopListening called 3")
     
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
             sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
+    }
+
+    init {
+        startPeriodicListeningCheck()
     }
 }

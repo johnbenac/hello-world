@@ -192,8 +192,10 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: S
             Button(
                 onClick = {
                     if (isListening) {
+                        Log.d("MainActivity", "Stop Listening button clicked")
                         assistantViewModel.stopListening()
                     } else {
+                        Log.d("MainActivity", "Start Listening button clicked")
                         assistantViewModel.startListening()
                     }
                 },

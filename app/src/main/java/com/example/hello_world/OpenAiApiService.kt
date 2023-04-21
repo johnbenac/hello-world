@@ -12,6 +12,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
 
 
@@ -28,12 +29,18 @@ data class OpenAiApiRequest(
     val stream: Boolean
 )
 
-class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel) {
-    private val client = OkHttpClient()
+class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel, private val timeoutInSeconds: Long = 600) {
+    private val client = OkHttpClient.Builder()
+        .readTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .writeTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .connectTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .build()
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
     suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
-        val messages = mutableListOf(OpenAiMessage("system", "you are an ai assistant named jake"))
+        val currentProfile = settingsViewModel.selectedProfile
+        val systemMessage = currentProfile?.systemMessage ?: "you are an ai assistant named jake"
+        val messages = mutableListOf(OpenAiMessage("system", systemMessage))
 
         conversationHistory.forEach { message ->
             messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
