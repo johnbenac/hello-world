@@ -1,4 +1,4 @@
-You are a senior app developer, helping me, a junior apprentice coder. We are working together on debugging an app that listens for a trigger word, and then transcribes the audio recorded. This is the code of the app: 
+You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iterativly into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI: 
 ```AndroidTextToSpeechService.kt``` 
 package com.example.hello_world
 import android.content.Context
@@ -21,10 +21,12 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
         }
     }
 
-    override fun speak(text: String, onFinish: (() -> Unit)?) {
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?) {
         val utteranceId = UUID.randomUUID().toString()
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String) {}
+            override fun onStart(utteranceId: String) {
+                onStart?.invoke()
+            }
 
             override fun onDone(utteranceId: String) {
                 onFinish?.invoke()
@@ -55,6 +57,7 @@ import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -62,10 +65,12 @@ class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
     private val context: Context,
     private val openAiApiService: OpenAiApiService
+    
 ) : ViewModel() {
-    val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
+    val latestPartialResult = mutableStateOf<String?>(null) 
     val _isAssistantSpeaking = mutableStateOf(false)
     val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
+//    val shouldListenAfterSpeaking = mutableStateOf(true)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -76,8 +81,8 @@ class AssistantViewModel(
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
 
+
     fun startListening() {
-//        voiceTriggerDetector.startListening()
         voiceTriggerDetector.startListening()
         _isListening.value = true
     }
@@ -88,13 +93,17 @@ class AssistantViewModel(
 
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
-        textToSpeechService.speak(responseText) {
+        textToSpeechService.speak(responseText, onFinish = {
             Handler(Looper.getMainLooper()).post {
-                _isAssistantSpeaking.value = false // Add this line
-                voiceTriggerDetector.startListening()
+                _isAssistantSpeaking.value = false
+                if (_isListening.value) {
+                    voiceTriggerDetector.startListening()
+                }
             }
-        }
-        _isAssistantSpeaking.value = true // Add this line
+        }, onStart = {
+            voiceTriggerDetector.stopListening()
+        })
+        _isAssistantSpeaking.value = true
     }
 
     private fun onAssistantResponse(response: String) {
@@ -102,15 +111,16 @@ class AssistantViewModel(
         _conversationMessages.add(ConversationMessage("Assistant", response))
     }
 
+
     fun stopListening() {
-//        voiceTriggerDetector.stopListening()
         voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
 
+    
+
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
-        // _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
         // Stop listening
@@ -197,7 +207,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        voiceTriggerDetector.stopListening()
         textToSpeechService.stop() // Stop any ongoing speech
     }
 
@@ -208,11 +217,6 @@ class MainActivity : AppCompatActivity() {
 
     private val conversationMessages = mutableStateListOf<ConversationMessage>()
 
-//    private fun onAssistantResponse(response: String) {
-//        // Add assistant message to the conversation state
-//        conversationMessages.add(ConversationMessage("Assistant", response))
-//        assistantViewModel.onAssistantResponse(response)
-//    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -282,6 +286,13 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
                     MessageCard(message)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = if (isListening) "Listening..." else "Not Listening",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) // Add this line to show the listening status
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -402,7 +413,7 @@ class OpenAiApiService(private val apiKey: String) {
 package com.example.hello_world
 
 interface TextToSpeechService {
-    fun speak(text: String, onFinish: (() -> Unit)? = null)
+    fun speak(text: String, onFinish: (() -> Unit)? = null, onStart: (() -> Unit)? = null)
     fun stop()
     fun shutdown()
 }``` 
@@ -445,11 +456,6 @@ class VoiceTriggerDetector(
 
     fun stopListening() {
         speechRecognizer.stopListening()
-    }
-
-    fun stopListeningForever() {
-        keepListening = false
-        stopListening()
     }
 
     override fun onReadyForSpeech(params: Bundle) {

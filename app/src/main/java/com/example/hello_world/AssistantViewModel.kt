@@ -17,9 +17,10 @@ class AssistantViewModel(
     private val openAiApiService: OpenAiApiService
     
 ) : ViewModel() {
-    val latestPartialResult = mutableStateOf<String?>(null)  // Change this line
+    val latestPartialResult = mutableStateOf<String?>(null) 
     val _isAssistantSpeaking = mutableStateOf(false)
     val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
+//    val shouldListenAfterSpeaking = mutableStateOf(true)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -30,12 +31,8 @@ class AssistantViewModel(
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
 
-    init {
-        monitorListeningState()
-    }
 
     fun startListening() {
-//        voiceTriggerDetector.startListening()
         voiceTriggerDetector.startListening()
         _isListening.value = true
     }
@@ -46,13 +43,17 @@ class AssistantViewModel(
 
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
-        textToSpeechService.speak(responseText) {
+        textToSpeechService.speak(responseText, onFinish = {
             Handler(Looper.getMainLooper()).post {
-                _isAssistantSpeaking.value = false // Add this line
-                voiceTriggerDetector.startListening()
+                _isAssistantSpeaking.value = false
+                if (_isListening.value) {
+                    voiceTriggerDetector.startListening()
+                }
             }
-        }
-        _isAssistantSpeaking.value = true // Add this line
+        }, onStart = {
+            voiceTriggerDetector.stopListening()
+        })
+        _isAssistantSpeaking.value = true
     }
 
     private fun onAssistantResponse(response: String) {
@@ -60,29 +61,16 @@ class AssistantViewModel(
         _conversationMessages.add(ConversationMessage("Assistant", response))
     }
 
+
     fun stopListening() {
-//        voiceTriggerDetector.stopListening()
         voiceTriggerDetector.stopListening()
         _isListening.value = false
     }
 
-    private fun monitorListeningState() {
-        viewModelScope.launch {
-            while (true) {
-                delay(1000) // Check every 1 second
-                if (!_isAssistantSpeaking.value && !_isListening.value) {
-                    startListening()
-                } else if (_isAssistantSpeaking.value && _isListening.value) {
-                    stopListening()
-                }
-            }
-        }
-    }
     
 
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
-        // _conversationMessages.add(ConversationMessage("User", "Trigger Word"))
         Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
     
         // Stop listening

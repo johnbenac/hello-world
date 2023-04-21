@@ -19,10 +19,12 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
         }
     }
 
-    override fun speak(text: String, onFinish: (() -> Unit)?) {
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?) {
         val utteranceId = UUID.randomUUID().toString()
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String) {}
+            override fun onStart(utteranceId: String) {
+                onStart?.invoke()
+            }
 
             override fun onDone(utteranceId: String) {
                 onFinish?.invoke()

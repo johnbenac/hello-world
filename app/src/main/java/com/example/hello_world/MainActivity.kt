@@ -68,7 +68,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        voiceTriggerDetector.stopListening()
         textToSpeechService.stop() // Stop any ongoing speech
     }
 
@@ -79,11 +78,6 @@ class MainActivity : AppCompatActivity() {
 
     private val conversationMessages = mutableStateListOf<ConversationMessage>()
 
-//    private fun onAssistantResponse(response: String) {
-//        // Add assistant message to the conversation state
-//        conversationMessages.add(ConversationMessage("Assistant", response))
-//        assistantViewModel.onAssistantResponse(response)
-//    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)

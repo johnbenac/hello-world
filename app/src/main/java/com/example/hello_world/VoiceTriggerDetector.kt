@@ -38,11 +38,6 @@ class VoiceTriggerDetector(
         speechRecognizer.stopListening()
     }
 
-    fun stopListeningForever() {
-        keepListening = false
-        stopListening()
-    }
-
     override fun onReadyForSpeech(params: Bundle) {
         // Handle when the SpeechRecognizer is ready to receive speech input
     }
