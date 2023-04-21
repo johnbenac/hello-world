@@ -1,5 +1,7 @@
-You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iterativly into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI: 
+You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iteratively into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI: 
+ 
 ```AndroidTextToSpeechService.kt``` 
+ 
 package com.example.hello_world
 import android.content.Context
 import android.speech.tts.TextToSpeech
@@ -46,8 +48,12 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
     override fun shutdown() {
         textToSpeech.shutdown()
     }
-}``` 
+} 
+``` 
+ 
+ 
 ```AssistantViewModel.kt``` 
+ 
 package com.example.hello_world
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
@@ -64,16 +70,17 @@ import kotlinx.coroutines.launch
 class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
     private val context: Context,
+    private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
-    
 ) : ViewModel() {
+//    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
     val latestPartialResult = mutableStateOf<String?>(null) 
     val _isAssistantSpeaking = mutableStateOf(false)
     val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
 //    val shouldListenAfterSpeaking = mutableStateOf(true)
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages
@@ -131,13 +138,149 @@ class AssistantViewModel(
             sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
     }
-}``` 
+} 
+``` 
+ 
+ 
 ```ConversationMessage.kt``` 
+ 
 package com.example.hello_world
 
-data class ConversationMessage(val sender: String, val message: String)``` 
+data class ConversationMessage(val sender: String, val message: String) 
+``` 
+ 
+ 
+```EditSettingsScreen.kt``` 
+ 
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.Button
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.hello_world.SettingsViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.RadioButton
+
+import androidx.compose.material.Slider
+
+@Composable
+fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
+    val editedProfile = settingsViewModel.editedProfile.value // Access the value property here
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Edit Settings", modifier = Modifier.padding(16.dp))
+
+        OutlinedTextField(
+            value = editedProfile.name, // Access the name property from the value
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfileName(newValue) }, // Use newValue instead of it
+            label = { Text("Profile Name") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+
+        OutlinedTextField(
+            value = editedProfile.systemMessage,
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfileSystemMessage(newValue) },
+            label = { Text("System Message") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Slider(
+            value = editedProfile.maxLength.toFloat(),
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
+            valueRange = 50f..300f,
+            steps = 5,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Slider(
+            value = editedProfile.temperature.toFloat(),
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Slider(
+            value = editedProfile.frequencyPenalty.toFloat(),
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Slider(
+            value = editedProfile.presencePenalty.toFloat(),
+            onValueChange = { newValue -> settingsViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+            val models = listOf("gpt-3.5-turbo", "gpt-4")
+            models.forEach { model ->
+                Row(
+                    Modifier
+                        .padding(end = 16.dp)
+                        .selectable(
+                            selected = (model == editedProfile.model),
+                            onClick = { settingsViewModel.updateEditedProfileModel(model) }
+                        )
+                ) {
+                    RadioButton(
+                        selected = (model == editedProfile.model),
+                        onClick = { settingsViewModel.updateEditedProfileModel(model) }
+                    )
+                    Text(
+                        text = model,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
+
+
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(onClick = {
+                settingsViewModel.saveEditedProfile()
+                onSettingsSaved()
+            }) {
+                Text("Save")
+            }
+
+            Button(onClick = onCancel) {
+                Text("Cancel")
+            }
+        }
+    }
+    //display the properties of the profile
+    
+} 
+``` 
+ 
+ 
 ```MainActivity.kt``` 
+ 
 package com.example.hello_world
+import EditSettingsScreen
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -165,6 +308,12 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
 
 
 
@@ -172,10 +321,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 
 class MainActivity : AppCompatActivity() {
     private lateinit var textToSpeechService: TextToSpeechService
-    private lateinit var assistantViewModel: AssistantViewModel
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector
     private lateinit var openAiApiService: OpenAiApiService
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
+    private val settingsViewModel = SettingsViewModel()
+
+    private lateinit var assistantViewModel: AssistantViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -183,14 +334,29 @@ class MainActivity : AppCompatActivity() {
 
         // Request audio recording permission
         requestAudioPermission()
-
         textToSpeechService = AndroidTextToSpeechService(this)
-        openAiApiService = OpenAiApiService("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")
-        assistantViewModel = AssistantViewModel(textToSpeechService, this, openAiApiService)
-        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected, latestPartialResult = assistantViewModel.latestPartialResult)
+        openAiApiService = OpenAiApiService("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", settingsViewModel)
+        assistantViewModel = AssistantViewModel(textToSpeechService, this, settingsViewModel, openAiApiService)
+
+
+
+        voiceTriggerDetector = assistantViewModel.voiceTriggerDetector
 
         setContent {
-            AssistantScreen(assistantViewModel)
+            val navController = rememberNavController()
+            NavHost(navController, startDestination = "assistant") {
+                composable("assistant") {
+                    AssistantScreen(assistantViewModel, settingsViewModel) {
+                        navController.navigate("settings")
+                    }
+                }
+                composable("settings") {
+                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController)
+                }
+                composable("edit-settings") {
+                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() })
+                }
+            }
         }
     }
 
@@ -224,9 +390,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission was granted
                 // Continue with creating the app UI and setting up listeners
-                setContent {
-                    AssistantScreen(assistantViewModel)
-                }
+
             } else {
                 // Permission was denied
                 // Show a message to the user and close the app
@@ -239,7 +403,15 @@ class MainActivity : AppCompatActivity() {
 
 @Composable
 fun ConversationScreen(messages: List<ConversationMessage>) {
-    LazyColumn {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    LazyColumn(state = listState) {
         items(messages) { message ->
             MessageCard(message)
         }
@@ -265,9 +437,11 @@ fun MessageCard(message: ConversationMessage) {
 }
 
 @Composable
-fun AssistantScreen(assistantViewModel: AssistantViewModel) {
+fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: SettingsViewModel, onSettingsClicked: () -> Unit) {
     val conversationMessages = assistantViewModel.conversationMessages
     val isListening = assistantViewModel.isListening
+
+
 
     BoxWithConstraints(
         modifier = Modifier
@@ -308,10 +482,21 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
             ) {
                 Text(if (isListening) "Stop Listening" else "Start Listening")
             }
+
+            Button(
+                onClick = onSettingsClicked,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Settings")
+            }
         }
     }
-}``` 
+} 
+``` 
+ 
+ 
 ```OpenAiApiResponse.kt``` 
+ 
 package com.example.hello_world
 import com.example.hello_world.OpenAiApiResponse
 
@@ -319,8 +504,12 @@ data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
 
 data class OpenAiApiChoice(val message: OpenAiApiMessage)
 
-data class OpenAiApiMessage(val role: String, val content: String)``` 
+data class OpenAiApiMessage(val role: String, val content: String) 
+``` 
+ 
+ 
 ```OpenAiApiService.kt``` 
+ 
 package com.example.hello_world
 import android.util.Log
 import java.util.Locale
@@ -336,7 +525,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+
 
 data class OpenAiMessage(val role: String, val content: String)
 
@@ -351,7 +540,7 @@ data class OpenAiApiRequest(
     val stream: Boolean
 )
 
-class OpenAiApiService(private val apiKey: String) {
+class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel) {
     private val client = OkHttpClient()
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
@@ -361,16 +550,18 @@ class OpenAiApiService(private val apiKey: String) {
         conversationHistory.forEach { message ->
             messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
         }
-    
+
+        val selectedProfile = settingsViewModel.selectedProfile
+
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(
                 messages = messages,
-                temperature = 0.9,
-                max_tokens = 100,
+                temperature = selectedProfile?.temperature ?: 0.9,
+                max_tokens = selectedProfile?.maxLength ?: 100,
                 top_p = 1,
-                frequency_penalty = 0.0,
-                presence_penalty = 0.1,
-                model = "gpt-3.5-turbo",
+                frequency_penalty = selectedProfile?.frequencyPenalty ?: 0.0,
+                presence_penalty = selectedProfile?.presencePenalty ?: 0.1,
+                model = selectedProfile?.model ?: "gpt-3.5-turbo",
                 stream = false
             )
         )
@@ -408,16 +599,173 @@ class OpenAiApiService(private val apiKey: String) {
             }
         })
     }
-}``` 
+} 
+``` 
+ 
+ 
+```Profile.kt``` 
+ 
+package com.example.hello_world
+
+data class Profile(
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+) 
+``` 
+ 
+ 
+```SettingsScreen.kt``` 
+ 
+package com.example.hello_world
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+
+@Composable
+fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () -> Unit, navController: NavController) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Select a profile", modifier = Modifier.padding(16.dp))
+
+        settingsViewModel.profiles.forEach { profile ->
+            Card(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth()
+                    .clickable { settingsViewModel.applyProfile(profile) }
+                    .shadow(elevation = 4.dp) // Add shadow with the 4.dp elevation
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = profile.name)
+                    Button(onClick = { onProfileApplied() }) {
+                        Text("Apply")
+                    }
+                    Button(
+                        onClick = { navController.navigate("edit-settings") },
+//                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Edit")
+                    }
+                    if (profile !in settingsViewModel.defaultProfiles) {
+                        Button(onClick = { settingsViewModel.deleteProfile(profile) }) {
+                            Text("Delete")
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 
+``` 
+ 
+ 
+```SettingsViewModel.kt``` 
+ 
+package com.example.hello_world
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+
+
+class SettingsViewModel : ViewModel() {
+    val defaultProfiles = listOf(
+        Profile("Profile 1", "You are an AI assistant named Jake.", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
+        Profile("Profile 2", "You are an AI assistant named Jane.", 150, 0.8, 0.1, 0.2, "gpt-3.5-turbo")
+    )
+    val editedProfile = mutableStateOf(Profile("", "", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
+
+    fun updateEditedProfileName(name: String) {
+        editedProfile.value = editedProfile.value.copy(name = name)
+    }
+    var profiles by mutableStateOf(defaultProfiles)
+    var selectedProfile by mutableStateOf<Profile?>(null)
+
+    fun saveEditedProfile() {
+        if (editedProfile.value.name.isNotBlank()) {
+            saveCustomProfile(editedProfile.value)
+        }
+    }
+
+    fun updateEditedProfileSystemMessage(systemMessage: String) {
+        editedProfile.value = editedProfile.value.copy(systemMessage = systemMessage)
+    }
+
+    fun updateEditedProfileMaxLength(maxLength: Int) {
+        editedProfile.value = editedProfile.value.copy(maxLength = maxLength)
+    }
+
+    fun updateEditedProfileTemperature(temperature: Double) {
+        editedProfile.value = editedProfile.value.copy(temperature = temperature)
+    }
+
+    fun updateEditedProfileFrequencyPenalty(frequencyPenalty: Double) {
+        editedProfile.value = editedProfile.value.copy(frequencyPenalty = frequencyPenalty)
+    }
+
+    fun updateEditedProfilePresencePenalty(presencePenalty: Double) {
+        editedProfile.value = editedProfile.value.copy(presencePenalty = presencePenalty)
+    }
+
+    fun updateEditedProfileModel(model: String) {
+        editedProfile.value = editedProfile.value.copy(model = model)
+    }
+
+    fun saveCustomProfile(profile: Profile) {
+        profiles = profiles.filter { it.name != profile.name } + profile
+    }
+
+
+    fun deleteProfile(profile: Profile) {
+        profiles = profiles.filter { it != profile }
+    }
+
+    fun applyProfile(profile: Profile) {
+        selectedProfile = profile
+    }
+} 
+``` 
+ 
+ 
 ```TextToSpeechService.kt``` 
+ 
 package com.example.hello_world
 
 interface TextToSpeechService {
     fun speak(text: String, onFinish: (() -> Unit)? = null, onStart: (() -> Unit)? = null)
     fun stop()
     fun shutdown()
-}``` 
+} 
+``` 
+ 
+ 
 ```VoiceTriggerDetector.kt``` 
+ 
 package com.example.hello_world
 import android.content.Context
 import android.speech.RecognitionListener
@@ -520,4 +868,6 @@ class VoiceTriggerDetector(
             }
         }
     }
-}``` 
+} 
+``` 
+ 

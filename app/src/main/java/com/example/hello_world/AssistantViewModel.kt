@@ -14,16 +14,17 @@ import kotlinx.coroutines.launch
 class AssistantViewModel(
     private val textToSpeechService: TextToSpeechService,
     private val context: Context,
+    private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
-    
 ) : ViewModel() {
+//    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
     val latestPartialResult = mutableStateOf<String?>(null) 
     val _isAssistantSpeaking = mutableStateOf(false)
     val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
 //    val shouldListenAfterSpeaking = mutableStateOf(true)
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
     val conversationMessages: List<ConversationMessage> get() = _conversationMessages

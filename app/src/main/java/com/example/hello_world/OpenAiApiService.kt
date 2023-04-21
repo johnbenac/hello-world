@@ -1,19 +1,19 @@
 package com.example.hello_world
 import android.util.Log
 import java.util.Locale
-//import okhttp3.Call
-//import okhttp3.Callback
-//import okhttp3.Response
-//import okhttp3.MediaType.Companion.toMediaType
-//import okhttp3.OkHttpClient
-//import okhttp3.Request
-//import okhttp3.RequestBody.Companion.toRequestBody
-//import com.squareup.moshi.Moshi
-//import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+
 
 data class OpenAiMessage(val role: String, val content: String)
 
@@ -28,7 +28,7 @@ data class OpenAiApiRequest(
     val stream: Boolean
 )
 
-class OpenAiApiService(private val apiKey: String) {
+class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel) {
     private val client = OkHttpClient()
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
@@ -38,16 +38,18 @@ class OpenAiApiService(private val apiKey: String) {
         conversationHistory.forEach { message ->
             messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
         }
-    
+
+        val selectedProfile = settingsViewModel.selectedProfile
+
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(
                 messages = messages,
-                temperature = 0.9,
-                max_tokens = 100,
+                temperature = selectedProfile?.temperature ?: 0.9,
+                max_tokens = selectedProfile?.maxLength ?: 100,
                 top_p = 1,
-                frequency_penalty = 0.0,
-                presence_penalty = 0.1,
-                model = "gpt-3.5-turbo",
+                frequency_penalty = selectedProfile?.frequencyPenalty ?: 0.0,
+                presence_penalty = selectedProfile?.presencePenalty ?: 0.1,
+                model = selectedProfile?.model ?: "gpt-3.5-turbo",
                 stream = false
             )
         )

@@ -1,4 +1,5 @@
 package com.example.hello_world
+import EditSettingsScreen
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -26,6 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
 
 
 
@@ -33,10 +40,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 
 class MainActivity : AppCompatActivity() {
     private lateinit var textToSpeechService: TextToSpeechService
-    private lateinit var assistantViewModel: AssistantViewModel
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector
     private lateinit var openAiApiService: OpenAiApiService
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
+    private val settingsViewModel = SettingsViewModel()
+
+    private lateinit var assistantViewModel: AssistantViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,14 +53,29 @@ class MainActivity : AppCompatActivity() {
 
         // Request audio recording permission
         requestAudioPermission()
-
         textToSpeechService = AndroidTextToSpeechService(this)
-        openAiApiService = OpenAiApiService("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")
-        assistantViewModel = AssistantViewModel(textToSpeechService, this, openAiApiService)
-        voiceTriggerDetector = VoiceTriggerDetector(this, "Hey", assistantViewModel::onTriggerWordDetected, latestPartialResult = assistantViewModel.latestPartialResult)
+        openAiApiService = OpenAiApiService("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", settingsViewModel)
+        assistantViewModel = AssistantViewModel(textToSpeechService, this, settingsViewModel, openAiApiService)
+
+
+
+        voiceTriggerDetector = assistantViewModel.voiceTriggerDetector
 
         setContent {
-            AssistantScreen(assistantViewModel)
+            val navController = rememberNavController()
+            NavHost(navController, startDestination = "assistant") {
+                composable("assistant") {
+                    AssistantScreen(assistantViewModel, settingsViewModel) {
+                        navController.navigate("settings")
+                    }
+                }
+                composable("settings") {
+                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController)
+                }
+                composable("edit-settings") {
+                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() })
+                }
+            }
         }
     }
 
@@ -85,9 +109,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission was granted
                 // Continue with creating the app UI and setting up listeners
-                setContent {
-                    AssistantScreen(assistantViewModel)
-                }
+
             } else {
                 // Permission was denied
                 // Show a message to the user and close the app
@@ -100,7 +122,15 @@ class MainActivity : AppCompatActivity() {
 
 @Composable
 fun ConversationScreen(messages: List<ConversationMessage>) {
-    LazyColumn {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    LazyColumn(state = listState) {
         items(messages) { message ->
             MessageCard(message)
         }
@@ -126,9 +156,11 @@ fun MessageCard(message: ConversationMessage) {
 }
 
 @Composable
-fun AssistantScreen(assistantViewModel: AssistantViewModel) {
+fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: SettingsViewModel, onSettingsClicked: () -> Unit) {
     val conversationMessages = assistantViewModel.conversationMessages
     val isListening = assistantViewModel.isListening
+
+
 
     BoxWithConstraints(
         modifier = Modifier
@@ -168,6 +200,13 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel) {
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text(if (isListening) "Stop Listening" else "Start Listening")
+            }
+
+            Button(
+                onClick = onSettingsClicked,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Settings")
             }
         }
     }
