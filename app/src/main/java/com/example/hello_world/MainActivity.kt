@@ -29,9 +29,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.MutableState
 
 
 
@@ -45,17 +48,24 @@ class MainActivity : AppCompatActivity() {
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
     private val settingsViewModel = SettingsViewModel()
 
+
     private lateinit var assistantViewModel: AssistantViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+//        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this))
+//        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService)
         super.onCreate(savedInstanceState)
         Log.d("MainActivity", "log: MainActivity opened")
 
         // Request audio recording permission
         requestAudioPermission()
-        textToSpeechService = AndroidTextToSpeechService(this)
+
+        // Initialize the TextToSpeechService state
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this))
+
         openAiApiService = OpenAiApiService("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", settingsViewModel)
-        assistantViewModel = AssistantViewModel(textToSpeechService, this, settingsViewModel, openAiApiService)
+        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService)
 
 
 
@@ -65,9 +75,7 @@ class MainActivity : AppCompatActivity() {
             val navController = rememberNavController()
             NavHost(navController, startDestination = "assistant") {
                 composable("assistant") {
-                    AssistantScreen(assistantViewModel, settingsViewModel) {
-                        navController.navigate("settings")
-                    }
+                    AssistantScreen(assistantViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState)
                 }
                 composable("settings") {
                     SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController)
@@ -156,11 +164,15 @@ fun MessageCard(message: ConversationMessage) {
 }
 
 @Composable
-fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: SettingsViewModel, onSettingsClicked: () -> Unit) {
-    val conversationMessages = assistantViewModel.conversationMessages
-    val isListening = assistantViewModel.isListening
+fun AssistantScreen(
+    assistantViewModel: AssistantViewModel,
+    settingsViewModel: SettingsViewModel,
+    onSettingsClicked: () -> Unit,
+    textToSpeechServiceState: MutableState<TextToSpeechService>
+) {
+    val context = LocalContext.current // Get the current context
 
-
+    // ...
 
     BoxWithConstraints(
         modifier = Modifier
@@ -175,7 +187,7 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: S
                     .weight(1f)
                     .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp)))
             ) {
-                items(conversationMessages) { message ->
+                items(assistantViewModel.conversationMessages) { message -> // Use assistantViewModel.conversationMessages here
                     MessageCard(message)
                 }
             }
@@ -183,15 +195,26 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: S
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (isListening) "Listening..." else "Not Listening",
+                text = if (assistantViewModel.isListening) "Listening..." else "Not Listening", // Use assistantViewModel.isListening here
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) // Add this line to show the listening status
 
             Spacer(modifier = Modifier.height(16.dp))
-
             Button(
                 onClick = {
-                    if (isListening) {
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) {
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context) // Pass the context here
+                    } else {
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context) // Pass the context here
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS")
+            }
+            Button(
+                onClick = {
+                    if (assistantViewModel.isListening) { // Use assistantViewModel.isListening here
                         Log.d("MainActivity", "Stop Listening button clicked")
                         assistantViewModel.stopListening()
                     } else {
@@ -201,7 +224,7 @@ fun AssistantScreen(assistantViewModel: AssistantViewModel, settingsViewModel: S
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text(if (isListening) "Stop Listening" else "Start Listening")
+                Text(if (assistantViewModel.isListening) "Stop Listening" else "Start Listening") // Use assistantViewModel.isListening here
             }
 
             Button(

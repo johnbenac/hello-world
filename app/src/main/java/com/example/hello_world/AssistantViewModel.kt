@@ -6,13 +6,14 @@ import androidx.lifecycle.ViewModel
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
 class AssistantViewModel(
-    private val textToSpeechService: TextToSpeechService,
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
@@ -45,7 +46,7 @@ class AssistantViewModel(
 
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         onAssistantResponse(responseText)
-        textToSpeechService.speak(responseText, onFinish = {
+        textToSpeechServiceState.value.speak(responseText, onFinish = {
             mainHandler.post {
                 _isAssistantSpeaking.value = false
 //                if (_isListening.value) {
