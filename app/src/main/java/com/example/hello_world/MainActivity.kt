@@ -1,6 +1,7 @@
 package com.example.hello_world
 import EditSettingsScreen
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -27,8 +28,17 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
@@ -128,25 +138,59 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+//@Composable
+//fun ConversationScreen(messages: List<ConversationMessage>, assistantViewModel: AssistantViewModel, context: Context) {
+//    val listState = rememberLazyListState()
+//
+//    LaunchedEffect(messages.size) {
+//        if (messages.isNotEmpty()) {
+//            listState.animateScrollToItem(messages.size - 1)
+//        }
+//    }
+//
+//    LazyColumn(state = listState) {
+//        items(messages) { message ->
+//            MessageCard(message) { audioFilePath ->
+//                assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+//            }
+//        }
+//    }
+//}
+
+
 @Composable
-fun ConversationScreen(messages: List<ConversationMessage>) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+fun MediaControls(
+    onPlay: () -> Unit,
+    onPause: () -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit
+) {
+    Row {
+        IconButton(onClick = {
+            Log.d("MediaControls", "Play button clicked") // Add this line
+            onPlay()
+        }) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = "Play")
         }
-    }
-
-    LazyColumn(state = listState) {
-        items(messages) { message ->
-            MessageCard(message)
+        IconButton(onClick = onPause) {
+            Icon(Icons.Filled.AccountBox, contentDescription = "Pause")
+        }
+        IconButton(onClick = onSeekForward) {
+            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward")
+        }
+        IconButton(onClick = onSeekBackward) {
+            Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Seek Backward")
         }
     }
 }
 
+
 @Composable
-fun MessageCard(message: ConversationMessage) {
+fun MessageCard(
+    message: ConversationMessage,
+    onPlayAudio: (String) -> Unit
+) {
+    Log.d("MessageCard", "Message: $message")
     Card(
         modifier = Modifier
             .padding(8.dp)
@@ -159,6 +203,16 @@ fun MessageCard(message: ConversationMessage) {
             Text(text = message.sender, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = message.message)
+            Spacer(modifier = Modifier.height(8.dp))
+            MediaControls(
+                onPlay = {
+                    Log.d("MessageCard", "Playing audio from file: ${message.audioFilePath.value}") // Add this line
+                    onPlayAudio(message.audioFilePath.value)
+                },
+                onPause = { /* Implement pause functionality in AssistantViewModel and pass the callback here */ },
+                onSeekForward = { /* Implement seek forward functionality in AssistantViewModel and pass the callback here */ },
+                onSeekBackward = { /* Implement seek backward functionality in AssistantViewModel and pass the callback here */ }
+            )
         }
     }
 }
@@ -180,15 +234,16 @@ fun AssistantScreen(
             .padding(16.dp)
     ) {
         val maxHeight = constraints.maxHeight
-
         Column(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp)))
             ) {
-                items(assistantViewModel.conversationMessages) { message -> // Use assistantViewModel.conversationMessages here
-                    MessageCard(message)
+                items(assistantViewModel.conversationMessages) { message ->
+                    MessageCard(message) { audioFilePath ->
+                        assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+                    }
                 }
             }
 

@@ -1,1093 +1,555 @@
 You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iteratively into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI: 
  
+```AndroidMediaPlaybackManager.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+//import android.media.session.MediaController 
+//import android.content.Context 
+//import android.media.MediaPlayer 
+(additional import statements abridged) 
+class AndroidMediaPlaybackManager : MediaPlaybackManager { 
+    private var mediaPlayer: MediaPlayer? = null 
+    private var mediaController: MediaController? = null 
+    override fun playAudio(filePath: String, context: Context) { 
+        mediaPlayer?.release() 
+        mediaPlayer = MediaPlayer().apply { 
+            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") // Add this line 
+            setDataSource(filePath) 
+            prepare() 
+        } 
+        mediaController?.hide() 
+        mediaController = MediaController(context) 
+        mediaController?.setMediaPlayer(object : MediaController.MediaPlayerControl { 
+            override fun start() = mediaPlayer?.start() ?: Unit 
+            override fun pause() = mediaPlayer?.pause() ?: Unit 
+            // Implement other required methods 
+            override fun getDuration(): Int = mediaPlayer?.duration ?: 0 
+            override fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0 
+            override fun getBufferPercentage(): Int = 0 
+            override fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false 
+            override fun seekTo(position: Int) { 
+                mediaPlayer?.seekTo(position) 
+            } 
+            override fun canPause(): Boolean { 
+                // Return true if your media player can pause, otherwise return false 
+                return true 
+            } 
+            override fun getAudioSessionId(): Int { 
+                // Return the audio session ID of your media player or 0 if not available 
+                return mediaPlayer?.audioSessionId ?: 0 
+            } 
+            override fun canSeekBackward(): Boolean { 
+                // Return true if your media player can seek backward, otherwise return false 
+                return true 
+            } 
+            override fun canSeekForward(): Boolean { 
+                // Return true if your media player can seek forward, otherwise return false 
+                return true 
+            } 
+        }) 
+        mediaController?.show() 
+    } 
+} 
+ 
+ 
 ```AndroidTextToSpeechService.kt``` 
  
-package com.example.hello_world
-import android.content.Context
-import android.speech.tts.TextToSpeech
-import java.util.UUID
-import android.speech.tts.UtteranceProgressListener
-import android.util.Log
-import java.util.Locale
-
-class AndroidTextToSpeechService(private val context: Context) : TextToSpeechService, TextToSpeech.OnInitListener {
-    private var textToSpeech: TextToSpeech = TextToSpeech(context, this)
-
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            val result = textToSpeech.setLanguage(Locale.getDefault())
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Handle the case where the default language data or the language itself is not supported
-            }
-        } else {
-            // Handle the case where TextToSpeech initialization failed
-        }
-    }
-
-    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?) {
-        val utteranceId = UUID.randomUUID().toString()
-
-        textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String) {
-                onStart?.invoke()
-                Log.d("AndroidTextToSpeechService", "log: onStart called")
-            }
-
-            override fun onDone(utteranceId: String) {
-                onFinish?.invoke()
-                Log.d("AndroidTextToSpeechService", "log: onDone called")
-            }
-
-            override fun onError(utteranceId: String) {
-                Log.d("AndroidTextToSpeechService", "log: onError called")
-            }
-        })
-
-        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
-    }
-
-
-    override fun stop() {
-        textToSpeech.stop()
-    }
-
-    override fun shutdown() {
-        textToSpeech.shutdown()
-    }
+package com.example.hello_world 
+(additional import statements abridged) 
+class AndroidTextToSpeechService(private val context: Context) : TextToSpeechService, TextToSpeech.OnInitListener { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private var textToSpeech: TextToSpeech = TextToSpeech(context, this) 
+    override fun onInit(status: Int) { 
+        if (status == TextToSpeech.SUCCESS) { 
+            val result = textToSpeech.setLanguage(Locale.getDefault()) 
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) { 
+                // Handle the case where the default language data or the language itself is not supported 
+            } 
+        } else { 
+            // Handle the case where TextToSpeech initialization failed 
+        } 
+    } 
+//    private fun playSavedAudioFile(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) { 
+//        val mediaPlayer = MediaPlayer().apply { 
+//            setDataSource(filePath) 
+//            setOnPreparedListener { 
+//                onStart?.invoke() 
+//                start() 
+//            } 
+//            setOnCompletionListener { 
+//                onFinish?.invoke() 
+//                release() 
+//            } 
+//            prepareAsync() 
+//        } 
+//    } 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val utteranceId = UUID.randomUUID().toString() 
+        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId") 
+        val filePath = File(context.getExternalFilesDir(null), "google_tts.mp3").absolutePath 
+        textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString()) 
+        textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() { 
+            override fun onStart(utteranceId: String) { 
+                onStart?.invoke() 
+                Log.d("AndroidTextToSpeechService", "log: onStart called") 
+            } 
+            override fun onDone(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId") 
+                Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath") 
+                audioFilePathState.value = filePath 
+                lastGeneratedAudioFilePath = filePath 
+//                Log.d("AndroidTextToSpeechService","about to attempt to play audio file") 
+//                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath 
+//                Log.d("AndroidTextToSpeechService","just attempted to play audio file") 
+            } 
+            override fun onError(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "log: onError called") 
+            } 
+        }) 
+//        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    override fun stop() { 
+        textToSpeech.stop() 
+    } 
+    override fun shutdown() { 
+        textToSpeech.shutdown() 
+    } 
 } 
-``` 
  
  
 ```AssistantViewModel.kt``` 
  
-package com.example.hello_world
-import android.content.Context
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
-import android.util.Log
-import android.os.Handler
-import android.os.Looper
-import androidx.compose.runtime.MutableState
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-
-class AssistantViewModel(
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
-    private val context: Context,
-    private val settingsViewModel: SettingsViewModel,
-    private val openAiApiService: OpenAiApiService
-) : ViewModel() {
-//    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
-    val latestPartialResult = mutableStateOf<String?>(null) 
-    val _isAssistantSpeaking = mutableStateOf(false)
-    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
-//    val shouldListenAfterSpeaking = mutableStateOf(true)
-
-    private val mainHandler = Handler(Looper.getMainLooper())
-    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
-
-    private val _conversationMessages = mutableStateListOf<ConversationMessage>()
-    val conversationMessages: List<ConversationMessage> get() = _conversationMessages
-
-    private val _isListening = mutableStateOf(false)
-    val isListening: Boolean get() = _isListening.value
-
-
-    fun startListening() {
-        voiceTriggerDetector.startListening()
-        _isListening.value = true
-//        Log.d("AssistantViewModel", "log: startListening called 1")
-    }
-
-    private suspend fun sendUserMessageToOpenAi(userMessage: String) {
-        // Add user message to the conversation state
-        _conversationMessages.add(ConversationMessage("User", userMessage))
-
-        val responseText = openAiApiService.sendMessage(_conversationMessages)
-        onAssistantResponse(responseText)
-        textToSpeechServiceState.value.speak(responseText, onFinish = {
-            mainHandler.post {
-                _isAssistantSpeaking.value = false
-//                if (_isListening.value) {
-                    startListening()
-                    Log.d("AssistantViewModel", "log: startListening called 2")
-//                }
-            }
-        }, onStart = {
-            mainHandler.post {
-                stopListening()
-                Log.d("AssistantViewModel", "log: stopListening called 1")
-            }
-        })
-        _isAssistantSpeaking.value = true
-    }
-
-    private fun startPeriodicListeningCheck() {
-        mainHandler.postDelayed({
-            if (_isListening.value && !_isAssistantSpeaking.value) {
-//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening")
-                startListening()
-            }
-            startPeriodicListeningCheck()
-        }, 3000) // Check every 3 seconds
-    }
-
-    private fun onAssistantResponse(response: String) {
-        // Add assistant message to the conversation state
-        _conversationMessages.add(ConversationMessage("Assistant", response))
-    }
-
-
-    fun stopListening() {
-        voiceTriggerDetector.stopListening()
-        Log.d("AssistantViewModel", "log: stopListening called 2")
-        _isListening.value = false
-    }
-
-    
-
-    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
-        // Add user message to the conversation state
-        Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
-    
-        // Stop listening
-        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
-        Log.d("AssistantViewModel", "log: stopListening called 3")
-    
-        // Send the user message to OpenAI API and process the response
-        viewModelScope.launch {
-            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
-        }
-    }
-
-    init {
-        startPeriodicListeningCheck()
-    }
+package com.example.hello_world 
+(additional import statements abridged) 
+class AssistantViewModel( 
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
+    private val context: Context, 
+    private val settingsViewModel: SettingsViewModel, 
+    private val openAiApiService: OpenAiApiService 
+) : ViewModel() { 
+    private val audioFilePathState = mutableStateOf<String>("") // Add this line 
+//    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel) 
+    val latestPartialResult = mutableStateOf<String?>(null)  
+    val _isAssistantSpeaking = mutableStateOf(false) 
+    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager() 
+    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value 
+//    val shouldListenAfterSpeaking = mutableStateOf(true) 
+    private val mainHandler = Handler(Looper.getMainLooper()) 
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult) 
+    private val _conversationMessages = mutableStateListOf<ConversationMessage>() 
+    val conversationMessages: List<ConversationMessage> get() = _conversationMessages 
+    private val _isListening = mutableStateOf(false) 
+    val isListening: Boolean get() = _isListening.value 
+    fun startListening() { 
+        voiceTriggerDetector.startListening() 
+        _isListening.value = true 
+//        Log.d("AssistantViewModel", "log: startListening called 1") 
+    } 
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) { 
+        // Add user message to the conversation state 
+        _conversationMessages.add(ConversationMessage("User", userMessage, mutableStateOf(""))) 
+        val responseText = openAiApiService.sendMessage(_conversationMessages) 
+        Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText") 
+        onAssistantResponse(responseText, audioFilePathState) 
+        textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = { 
+            mainHandler.post { 
+                _isAssistantSpeaking.value = false 
+//                if (_isListening.value) { 
+                    startListening() 
+                    Log.d("AssistantViewModel", "log: startListening called 2") 
+//                } 
+            } 
+        }, onStart = { 
+            mainHandler.post { 
+                stopListening() 
+                Log.d("AssistantViewModel", "log: stopListening called 1") 
+            } 
+        }, audioFilePathState = audioFilePathState) 
+        _isAssistantSpeaking.value = true 
+    } 
+    private fun startPeriodicListeningCheck() { 
+        mainHandler.postDelayed({ 
+            if (_isListening.value && _isAssistantSpeaking.value) { 
+//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening") 
+                startListening() 
+            } 
+            startPeriodicListeningCheck() 
+        }, 3000) // Check every 3 seconds 
+    } 
+    private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) { 
+        // Add assistant message to the conversation state 
+        val audioFilePath = textToSpeechServiceState.value.getAudioFilePath() 
+        Log.d("AssistantViewModel", "Received audio file path: $audioFilePath") // Add this line 
+        _conversationMessages.add(ConversationMessage("Assistant", response, audioFilePathState)) 
+    } 
+    fun stopListening() { 
+        voiceTriggerDetector.stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 2") 
+        _isListening.value = false 
+    } 
+ECHO is off.
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter 
+        // Add user message to the conversation state 
+        Log.d("AssistantViewModel", "log: onTriggerWordDetected called") 
+ECHO is off.
+        // Stop listening 
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 3") 
+ECHO is off.
+        // Send the user message to OpenAI API and process the response 
+        viewModelScope.launch { 
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here 
+        } 
+    } 
+    init { 
+        startPeriodicListeningCheck() 
+    } 
 } 
-``` 
  
  
-```ConversationMessage.kt``` 
+```ElevenLabsTextToSpeechService.kt``` 
  
-package com.example.hello_world
-
-data class ConversationMessage(val sender: String, val message: String) 
-``` 
- 
- 
-```EditSettingsScreen.kt``` 
- 
-import android.util.Log
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.Button
-import androidx.compose.material.OutlinedTextField
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.example.hello_world.SettingsViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material.RadioButton
-
-import androidx.compose.material.Slider
-
-@Composable
-fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
-    val editedProfile = settingsViewModel.editedProfile.value // Access the value property here
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text("Edit Settings", modifier = Modifier.padding(16.dp))
-
-        OutlinedTextField(
-            value = editedProfile.name, // Access the name property from the value
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileName(newValue) }, // Use newValue instead of it
-            label = { Text("Profile Name") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-
-        OutlinedTextField(
-            value = editedProfile.systemMessage.takeIf { it.isNotEmpty() } ?: "I am an AI assistant.",
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileSystemMessage(newValue) },
-            label = { Text("System Message") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-        Text("Max Length (20 to 2000)", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
-        Slider(
-            value = editedProfile.maxLength.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
-            valueRange = 20f..2000f,
-            steps = 5,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-        Text("Temperature", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
-        Slider(
-            value = editedProfile.temperature.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
-            valueRange = 0f..1f,
-            steps = 10,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-        Text("Frequency Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
-        Slider(
-            value = editedProfile.frequencyPenalty.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
-            valueRange = 0f..1f,
-            steps = 10,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-        Text("Presence Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
-        Slider(
-            value = editedProfile.presencePenalty.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
-            valueRange = 0f..1f,
-            steps = 10,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-        Text("Model", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
-        Row(modifier = Modifier.padding(horizontal = 16.dp)) {
-            val models = listOf("gpt-3.5-turbo", "gpt-4")
-            models.forEach { model ->
-                Row(
-                    Modifier
-                        .padding(end = 16.dp)
-                        .selectable(
-                            selected = (model == editedProfile.model),
-                            onClick = { settingsViewModel.updateEditedProfileModel(model) }
-                        )
-                ) {
-                    RadioButton(
-                        selected = (model == editedProfile.model),
-                        onClick = { settingsViewModel.updateEditedProfileModel(model) }
-                    )
-                    Text(
-                        text = model,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-            }
-        }
-
-
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(onClick = {
-                settingsViewModel.saveEditedProfile()
-                onSettingsSaved()
-                Log.d("EditSettingsScreen", "Save button clicked")
-            }) {
-                Text("Save")
-            }
-
-            Button(onClick = {
-                onCancel()
-                Log.d("EditSettingsScreen", "Cancel button clicked")
-            }) {
-                Text("Cancel")
-            }
-        }
-    }
-    //display the properties of the profile
-    
+package com.example.hello_world 
+(additional import statements abridged) 
+//import android.os.ParcelFileDescriptor 
+(additional import statements abridged) 
+class ElevenLabsTextToSpeechService( 
+    private val apiKey: String, 
+    private val voiceId: String, 
+    private val context: Context 
+) : TextToSpeechService { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private val client = OkHttpClient() 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val fileName = "elevenlabs_tts_${UUID.randomUUID()}.mp3" 
+        val filePath = File(context.getExternalFilesDir(null), fileName).absolutePath 
+        val requestBody = createTtsRequestBody(text) 
+        val request = buildTtsRequest(requestBody) 
+        client.newCall(request).enqueue(object : Callback { 
+            override fun onFailure(call: Call, e: IOException) { 
+                Log.d("ElevenLabsTextToSpeechService", "onFailure called") 
+                Log.e("ElevenLabsTextToSpeechService", "onFailure called: ${e.message}", e) 
+            } 
+            override fun onResponse(call: Call, response: Response) { 
+                Log.d("ElevenLabsTextToSpeechService", "onResponse called") 
+                handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState) 
+            } 
+        }) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    private fun createTtsRequestBody(text: String): RequestBody { 
+        val json = """ 
+            { 
+                "text": "$text", 
+                "voice_settings": { 
+                    "stability": 0, 
+                    "similarity_boost": 0 
+                } 
+            } 
+        """.trimIndent() 
+        Log.d("ElevenLabsTextToSpeechService", "createTtsRequestBody called") 
+        return RequestBody.create("application/json".toMediaType(), json) 
+    } 
+    private fun buildTtsRequest(requestBody: RequestBody): Request { 
+        Log.d("ElevenLabsTextToSpeechService", "buildTtsRequest called") 
+        return Request.Builder() 
+            .url("https://api.elevenlabs.io/v1/text-to-speech/$voiceId") 
+            .addHeader("accept", "audio/mpeg") 
+            .addHeader("xi-api-key", apiKey) 
+            .post(requestBody) 
+            .build() 
+    } 
+    private fun handleTtsResponse( 
+        response: Response, 
+        filePath: String, 
+        onStart: (() -> Unit)?, 
+        onFinish: (() -> Unit)?, 
+        audioFilePathState: MutableState<String> // Add this parameter 
+    ) { 
+        Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called") 
+        if (response.isSuccessful) { 
+            response.body?.byteStream()?.let { inputStream -> 
+                FileOutputStream(File(filePath)).use { outputStream -> 
+                    inputStream.copyTo(outputStream) 
+                } 
+                Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath") 
+                audioFilePathState.value = filePath 
+//                setupMediaPlayer(filePath, onStart, onFinish) 
+            } 
+        } else { 
+            // Handle the unsuccessful response 
+            // ... 
+        } 
+    } 
+//    private fun setupMediaPlayer(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) { 
+//        Log.d("ElevenLabsTextToSpeechService", "setupMediaPlayer called") 
+//        val mediaPlayer = MediaPlayer().apply { 
+//            setDataSource(filePath) 
+//            setOnPreparedListener { 
+//                onStart?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onPrepared") 
+//                start() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer started") 
+//            } 
+//            setOnCompletionListener { 
+//                onFinish?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onCompletion") 
+//                release() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer released") 
+//            } 
+//            prepareAsync() 
+//            Log.d("ElevenLabsTextToSpeechService", "mediaPlayer preparedAsync") 
+//        } 
+//    } 
+    override fun stop() { 
+        // Implement stop functionality if needed 
+    } 
+    override fun shutdown() { 
+        // Implement shutdown functionality if needed 
+    } 
 } 
-``` 
- 
- 
-```ElevanLabsTextToSpeechSerivce.kt``` 
- 
-package com.example.hello_world
-
-import android.media.MediaPlayer
-import okhttp3.*
-import java.io.IOException
-import okhttp3.MediaType.Companion.toMediaType
-//import android.os.ParcelFileDescriptor
-import java.io.File
-import java.io.FileOutputStream
-import android.content.Context
-import android.util.Log
-
-class ElevenLabsTextToSpeechService(
-    private val apiKey: String,
-    private val voiceId: String,
-    private val context: Context
-) : TextToSpeechService {
-    private val client = OkHttpClient()
-
-    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?) {
-        val requestBody = RequestBody.create(
-            "application/json".toMediaType(),
-            """
-        {
-            "text": "$text",
-            "voice_settings": {
-                "stability": 0,
-                "similarity_boost": 0
-            }
-        }
-        """.trimIndent()
-        )
-
-        val request = Request.Builder()
-            .url("https://api.elevenlabs.io/v1/text-to-speech/$voiceId")
-            .addHeader("accept", "audio/mpeg")
-            .addHeader("xi-api-key", apiKey)
-            .post(requestBody)
-            .build()
-
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                // Handle the error
-                Log.d("ElevenLabsTextToSpeechService", "log: onFailure called")
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                if (response.isSuccessful) {
-                    response.body?.byteStream()?.let { inputStream ->
-                        val tempFile = File.createTempFile("tts", "mp3", context.cacheDir).apply {
-                            deleteOnExit()
-                            Log.d("ElevenLabsTextToSpeechService", "log: tempFile created")
-                        }
-                        FileOutputStream(tempFile).use { outputStream ->
-                            inputStream.copyTo(outputStream)
-                            Log.d("ElevenLabsTextToSpeechService", "log: inputStream copied to outputStream")
-                        }
-
-                        val mediaPlayer = MediaPlayer().apply {
-                            setDataSource(tempFile.absolutePath)
-                            setOnPreparedListener {
-                                onStart?.invoke()
-                                start()
-                                Log.d("ElevenLabsTextToSpeechService", "log: mediaPlayer started")
-                            }
-                            setOnCompletionListener {
-                                onFinish?.invoke()
-                                release()
-                                Log.d("ElevenLabsTextToSpeechService", "log: mediaPlayer released")
-                            }
-                            prepareAsync()
-                            Log.d("ElevenLabsTextToSpeechService", "log: mediaPlayer preparedAsync")
-                        }
-                    }
-                } else {
-                    // Handle the unsuccessful response
-                    Log.d("ElevenLabsTextToSpeechService", "log: onResponse called, thinks it's an unsuccesful response")
-                }
-            }
-        })
-    }
-
-    override fun stop() {
-        // Implement stop functionality if needed
-    }
-
-    override fun shutdown() {
-        // Implement shutdown functionality if needed
-    }
-} 
-``` 
  
  
 ```MainActivity.kt``` 
  
-package com.example.hello_world
-import EditSettingsScreen
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Text
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.MutableState
-
-
-
-
-// data class ConversationMessage(val sender: String, val message: String)
-
-class MainActivity : AppCompatActivity() {
-    private lateinit var textToSpeechService: TextToSpeechService
-    private lateinit var voiceTriggerDetector: VoiceTriggerDetector
-    private lateinit var openAiApiService: OpenAiApiService
-    private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
-    private val settingsViewModel = SettingsViewModel()
-
-
-    private lateinit var assistantViewModel: AssistantViewModel
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-
-//        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this))
-//        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService)
-        super.onCreate(savedInstanceState)
-        Log.d("MainActivity", "log: MainActivity opened")
-
-        // Request audio recording permission
-        requestAudioPermission()
-
-        // Initialize the TextToSpeechService state
-        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this))
-
-        openAiApiService = OpenAiApiService("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", settingsViewModel)
-        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService)
-
-
-
-        voiceTriggerDetector = assistantViewModel.voiceTriggerDetector
-
-        setContent {
-            val navController = rememberNavController()
-            NavHost(navController, startDestination = "assistant") {
-                composable("assistant") {
-                    AssistantScreen(assistantViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState)
-                }
-                composable("settings") {
-                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController)
-                }
-                composable("edit-settings") {
-                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() })
-                }
-            }
-        }
-    }
-
-    private fun requestAudioPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_REQUEST_CODE)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        voiceTriggerDetector.startListening()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        textToSpeechService.stop() // Stop any ongoing speech
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        textToSpeechService.shutdown()
-    }
-
-    private val conversationMessages = mutableStateListOf<ConversationMessage>()
-
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission was granted
-                // Continue with creating the app UI and setting up listeners
-
-            } else {
-                // Permission was denied
-                // Show a message to the user and close the app
-                Toast.makeText(this, "Permission to record audio is required to use this app.", Toast.LENGTH_LONG).show()
-                finish()
-            }
-        }
-    }
-}
-
-@Composable
-fun ConversationScreen(messages: List<ConversationMessage>) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    LazyColumn(state = listState) {
-        items(messages) { message ->
-            MessageCard(message)
-        }
-    }
-}
-
-@Composable
-fun MessageCard(message: ConversationMessage) {
-    Card(
-        modifier = Modifier
-            .padding(8.dp)
-            .fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-        ) {
-            Text(text = message.sender, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = message.message)
-        }
-    }
-}
-
-@Composable
-fun AssistantScreen(
-    assistantViewModel: AssistantViewModel,
-    settingsViewModel: SettingsViewModel,
-    onSettingsClicked: () -> Unit,
-    textToSpeechServiceState: MutableState<TextToSpeechService>
-) {
-    val context = LocalContext.current // Get the current context
-
-    // ...
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        val maxHeight = constraints.maxHeight
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp)))
-            ) {
-                items(assistantViewModel.conversationMessages) { message -> // Use assistantViewModel.conversationMessages here
-                    MessageCard(message)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = if (assistantViewModel.isListening) "Listening..." else "Not Listening", // Use assistantViewModel.isListening here
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) // Add this line to show the listening status
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) {
-                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context) // Pass the context here
-                    } else {
-                        textToSpeechServiceState.value = AndroidTextToSpeechService(context) // Pass the context here
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS")
-            }
-            Button(
-                onClick = {
-                    if (assistantViewModel.isListening) { // Use assistantViewModel.isListening here
-                        Log.d("MainActivity", "Stop Listening button clicked")
-                        assistantViewModel.stopListening()
-                    } else {
-                        Log.d("MainActivity", "Start Listening button clicked")
-                        assistantViewModel.startListening()
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text(if (assistantViewModel.isListening) "Stop Listening" else "Start Listening") // Use assistantViewModel.isListening here
-            }
-
-            Button(
-                onClick = onSettingsClicked,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text("Settings")
-            }
-        }
-    }
+package com.example.hello_world 
+(additional import statements abridged) 
+// data class ConversationMessage(val sender: String, val message: String) 
+class MainActivity : AppCompatActivity() { 
+    private lateinit var textToSpeechService: TextToSpeechService 
+    private lateinit var voiceTriggerDetector: VoiceTriggerDetector 
+    private lateinit var openAiApiService: OpenAiApiService 
+    private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1 
+    private val settingsViewModel = SettingsViewModel() 
+    private lateinit var assistantViewModel: AssistantViewModel 
+    override fun onCreate(savedInstanceState: Bundle?) { 
+//        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this)) 
+//        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) 
+        super.onCreate(savedInstanceState) 
+        Log.d("MainActivity", "log: MainActivity opened") 
+        // Request audio recording permission 
+        requestAudioPermission() 
+        // Initialize the TextToSpeechService state 
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this)) 
+        openAiApiService = OpenAiApiService("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", settingsViewModel) 
+        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) 
+        voiceTriggerDetector = assistantViewModel.voiceTriggerDetector 
+        setContent { 
+            val navController = rememberNavController() 
+            NavHost(navController, startDestination = "assistant") { 
+                composable("assistant") { 
+                    AssistantScreen(assistantViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState) 
+                } 
+                composable("settings") { 
+                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController) 
+                } 
+                composable("edit-settings") { 
+                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() }) 
+                } 
+            } 
+        } 
+    } 
+    private fun requestAudioPermission() { 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) = PackageManager.PERMISSION_GRANTED) { 
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_REQUEST_CODE) 
+        } 
+    } 
+    override fun onResume() { 
+        super.onResume() 
+        voiceTriggerDetector.startListening() 
+    } 
+    override fun onPause() { 
+        super.onPause() 
+        textToSpeechService.stop() // Stop any ongoing speech 
+    } 
+    override fun onDestroy() { 
+        super.onDestroy() 
+        textToSpeechService.shutdown() 
+    } 
+    private val conversationMessages = mutableStateListOf<ConversationMessage>() 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) { 
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults) 
+        if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) { 
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) { 
+                // Permission was granted 
+                // Continue with creating the app UI and setting up listeners 
+            } else { 
+                // Permission was denied 
+                // Show a message to the user and close the app 
+                Toast.makeText(this, "Permission to record audio is required to use this app.", Toast.LENGTH_LONG).show() 
+                finish() 
+            } 
+        } 
+    } 
 } 
-``` 
- 
- 
-```OpenAiApiResponse.kt``` 
- 
-package com.example.hello_world
-import com.example.hello_world.OpenAiApiResponse
-
-data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
-
-data class OpenAiApiChoice(val message: OpenAiApiMessage)
-
-data class OpenAiApiMessage(val role: String, val content: String) 
-``` 
- 
- 
-```OpenAiApiService.kt``` 
- 
-package com.example.hello_world
-import android.util.Log
-import java.util.Locale
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.Response
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.IOException
-import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resumeWithException
-
-
-data class OpenAiMessage(val role: String, val content: String)
-
-data class OpenAiApiRequest(
-    val messages: List<OpenAiMessage>,
-    val temperature: Double,
-    val max_tokens: Int,
-    val top_p: Int,
-    val frequency_penalty: Double,
-    val presence_penalty: Double,
-    val model: String,
-    val stream: Boolean
-)
-
-class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel, private val timeoutInSeconds: Long = 600) {
-    private val client = OkHttpClient.Builder()
-        .readTimeout(timeoutInSeconds, TimeUnit.SECONDS)
-        .writeTimeout(timeoutInSeconds, TimeUnit.SECONDS)
-        .connectTimeout(timeoutInSeconds, TimeUnit.SECONDS)
-        .build()
-    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
-
-    suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
-        val currentProfile = settingsViewModel.selectedProfile
-        val systemMessage = currentProfile?.systemMessage ?: "you are an ai assistant named jake"
-        val messages = mutableListOf(OpenAiMessage("system", systemMessage))
-
-        conversationHistory.forEach { message ->
-            messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
-        }
-
-        val selectedProfile = settingsViewModel.selectedProfile
-
-        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
-            OpenAiApiRequest(
-                messages = messages,
-                temperature = selectedProfile?.temperature ?: 0.9,
-                max_tokens = selectedProfile?.maxLength ?: 100,
-                top_p = 1,
-                frequency_penalty = selectedProfile?.frequencyPenalty ?: 0.0,
-                presence_penalty = selectedProfile?.presencePenalty ?: 0.1,
-                model = selectedProfile?.model ?: "gpt-3.5-turbo",
-                stream = false
-            )
-        )
-        Log.d("OpenAiApiService", "API Request: $requestJson")
-    
-        val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
-    
-        val request = Request.Builder()
-            .url("https://api.openai.com/v1/chat/completions")
-            .addHeader("Authorization", "Bearer $apiKey")
-            .post(requestBody)
-            .build()
-    
-        val call = client.newCall(request)
-    
-        call.enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                if (continuation.isCancelled) return
-                continuation.resumeWithException(e)
-            }
-    
-            override fun onResponse(call: Call, response: Response) {
-                if (continuation.isCancelled) return
-            
-                if (!response.isSuccessful) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
-                } else {
-                    val responseBody = response.body?.string()
-                    Log.d("OpenAiApiService", "Received JSON: $responseBody") // Add this line to log the received JSON
-                    val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
-                    val apiResponse = jsonAdapter.fromJson(responseBody)
-            
-                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.message?.content ?: ""))
-                }
-            }
-        })
-    }
+//@Composable 
+//fun ConversationScreen(messages: List<ConversationMessage>, assistantViewModel: AssistantViewModel, context: Context) { 
+//    val listState = rememberLazyListState() 
+// 
+//    LaunchedEffect(messages.size) { 
+//        if (messages.isNotEmpty()) { 
+//            listState.animateScrollToItem(messages.size - 1) 
+//        } 
+//    } 
+// 
+//    LazyColumn(state = listState) { 
+//        items(messages) { message -> 
+//            MessageCard(message) { audioFilePath -> 
+//                assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) 
+//            } 
+//        } 
+//    } 
+//} 
+@Composable 
+fun MediaControls( 
+    onPlay: () -> Unit, 
+    onPause: () -> Unit, 
+    onSeekForward: () -> Unit, 
+    onSeekBackward: () -> Unit 
+) { 
+    Row { 
+        IconButton(onClick = onPlay) { 
+            Icon(Icons.Filled.PlayArrow, contentDescription = "Play") 
+        } 
+        IconButton(onClick = onPause) { 
+            Icon(Icons.Filled.AccountBox, contentDescription = "Pause") 
+        } 
+        IconButton(onClick = onSeekForward) { 
+            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") 
+        } 
+        IconButton(onClick = onSeekBackward) { 
+            Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Seek Backward") 
+        } 
+    } 
 } 
-``` 
- 
- 
-```Profile.kt``` 
- 
-package com.example.hello_world
-
-data class Profile(
-    val name: String,
-    val systemMessage: String,
-    val maxLength: Int,
-    val temperature: Double,
-    val frequencyPenalty: Double,
-    val presencePenalty: Double,
-    val model: String
-) 
-``` 
- 
- 
-```SettingsScreen.kt``` 
- 
-package com.example.hello_world
-
-import android.util.Log
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-
-@Composable
-fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () -> Unit, navController: NavController) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text("Current Settings", modifier = Modifier.padding(16.dp))
-        CurrentSettings(settingsViewModel.selectedProfile)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Select a profile", modifier = Modifier.padding(16.dp))
-
-        settingsViewModel.profiles.forEach { profile ->
-            Card(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxWidth()
-                    .clickable { settingsViewModel.applyProfile(profile) }
-                    .shadow(elevation = 4.dp) // Add shadow with the 4.dp elevation
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = profile.name)
-                    Button(onClick = {
-                        Log.d("SettingsScreen", "Apply button clicked for profile: $profile")
-                        settingsViewModel.applyProfile(profile)
-                        onProfileApplied()
-                    }) {
-                        Text("Apply")
-                    }
-                    Button(
-                        onClick = {
-                            Log.d("SettingsScreen", "Edit button clicked for profile: $profile")
-                            navController.navigate("edit-settings")
-                        }
-                    ) {
-                        Text("Edit")
-                    }
-                    if (profile !in settingsViewModel.defaultProfiles) {
-                        Button(onClick = {
-                            Log.d("SettingsScreen", "Delete button clicked for profile: $profile")
-                            settingsViewModel.deleteProfile(profile)
-                        }) {
-                            Text("Delete")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CurrentSettings(selectedProfile: Profile?) {
-    selectedProfile?.let { profile ->
-        Card(
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth()
-                .shadow(elevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-            ) {
-                Text(text = "Model: ${profile.model}")
-                Text(text = "System Message: ${profile.systemMessage}")
-                Text(text = "Max Length: ${profile.maxLength}")
-                Text(text = "Temperature: ${profile.temperature}")
-                Text(text = "Frequency Penalty: ${profile.frequencyPenalty}")
-                Text(text = "Presence Penalty: ${profile.presencePenalty}")
-            }
-        }
-    }
+@Composable 
+fun MessageCard( 
+    message: ConversationMessage, 
+    onPlayAudio: (String) -> Unit 
+) { 
+    Log.d("MessageCard", "Message: $message") 
+    Card( 
+        modifier = Modifier 
+            .padding(8.dp) 
+            .fillMaxWidth() 
+    ) { 
+        Column( 
+            modifier = Modifier 
+                .padding(16.dp) 
+        ) { 
+            Text(text = message.sender, fontWeight = FontWeight.Bold) 
+            Spacer(modifier = Modifier.height(4.dp)) 
+            Text(text = message.message) 
+            Spacer(modifier = Modifier.height(8.dp)) 
+            MediaControls( 
+                onPlay = { 
+                    Log.d("MessageCard", "Playing audio from file: ${message.audioFilePath}") // Add this line 
+                    onPlayAudio(message.audioFilePath.value) 
+                }, 
+                onPause = { /* Implement pause functionality in AssistantViewModel and pass the callback here */ }, 
+                onSeekForward = { /* Implement seek forward functionality in AssistantViewModel and pass the callback here */ }, 
+                onSeekBackward = { /* Implement seek backward functionality in AssistantViewModel and pass the callback here */ } 
+            ) 
+        } 
+    } 
 } 
-``` 
- 
- 
-```SettingsViewModel.kt``` 
- 
-package com.example.hello_world
-
-import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
-
-
-class SettingsViewModel : ViewModel() {
-
-    val defaultProfiles = listOf(
-        Profile("Profile 1", "You are an AI assistant named Jake.", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
-        Profile("Profile 2", "You are an AI assistant named Jane.", 150, 0.8, 0.1, 0.2, "gpt-3.5-turbo")
-    )
-    val editedProfile = mutableStateOf(Profile("", "", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
-
-    fun updateEditedProfileName(name: String) {
-        Log.d("SettingsViewModel", "Profile name updated: $name")
-        editedProfile.value = editedProfile.value.copy(name = name)
-    }
-    var profiles by mutableStateOf(defaultProfiles)
-//    var selectedProfile by mutableStateOf<Profile?>(null)
-    var selectedProfile by mutableStateOf<Profile?>(defaultProfiles.first())
-
-    fun saveEditedProfile() {
-        if (editedProfile.value.name.isNotBlank()) {
-            Log.d("SettingsViewModel", "Saving edited profile: ${editedProfile.value}")
-            saveCustomProfile(editedProfile.value)
-        }
-    }
-
-    fun updateEditedProfileSystemMessage(systemMessage: String) {
-        Log.d("SettingsViewModel", "System message updated: $systemMessage")
-        editedProfile.value = editedProfile.value.copy(systemMessage = systemMessage)
-    }
-
-    fun updateEditedProfileMaxLength(maxLength: Int) {
-        Log.d("SettingsViewModel", "Max length updated: $maxLength")
-        editedProfile.value = editedProfile.value.copy(maxLength = maxLength)
-    }
-
-    fun updateEditedProfileTemperature(temperature: Double) {
-        Log.d("SettingsViewModel", "Temperature updated: $temperature")
-        editedProfile.value = editedProfile.value.copy(temperature = temperature)
-    }
-
-    fun updateEditedProfileFrequencyPenalty(frequencyPenalty: Double) {
-        Log.d("SettingsViewModel", "Frequency Penalty updated: $frequencyPenalty")
-        editedProfile.value = editedProfile.value.copy(frequencyPenalty = frequencyPenalty)
-    }
-
-    fun updateEditedProfilePresencePenalty(presencePenalty: Double) {
-        Log.d("SettingsViewModel", "Presence Penalty updated: $presencePenalty")
-        editedProfile.value = editedProfile.value.copy(presencePenalty = presencePenalty)
-    }
-
-    fun updateEditedProfileModel(model: String) {
-        Log.d("SettingsViewModel", "Model updated: $model")
-        editedProfile.value = editedProfile.value.copy(model = model)
-    }
-
-    fun saveCustomProfile(profile: Profile) {
-        Log.d("SettingsViewModel", "Saving profile: $profile")
-        profiles = profiles.filter { it.name != profile.name } + profile
-    }
-
-
-    fun deleteProfile(profile: Profile) {
-        Log.d("SettingsViewModel", "Deleting profile: $profile")
-        profiles = profiles.filter { it != profile }
-    }
-
-    fun applyProfile(profile: Profile) {
-        Log.d("SettingsViewModel", "Applying profile: $profile")
-        selectedProfile = profile
-    }
+@Composable 
+fun AssistantScreen( 
+    assistantViewModel: AssistantViewModel, 
+    settingsViewModel: SettingsViewModel, 
+    onSettingsClicked: () -> Unit, 
+    textToSpeechServiceState: MutableState<TextToSpeechService> 
+) { 
+    val context = LocalContext.current // Get the current context 
+    // ... 
+    BoxWithConstraints( 
+        modifier = Modifier 
+            .fillMaxSize() 
+            .padding(16.dp) 
+    ) { 
+        val maxHeight = constraints.maxHeight 
+        Column(modifier = Modifier.fillMaxSize()) { 
+            LazyColumn( 
+                modifier = Modifier 
+                    .weight(1f) 
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) 
+            ) { 
+                items(assistantViewModel.conversationMessages) { message -> 
+                    MessageCard(message) { audioFilePath -> 
+                        assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) 
+                    } 
+                } 
+            } 
+            Spacer(modifier = Modifier.height(16.dp)) 
+            Text( 
+                text = if (assistantViewModel.isListening) "Listening..." else "Not Listening", // Use assistantViewModel.isListening here 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) // Add this line to show the listening status 
+            Spacer(modifier = Modifier.height(16.dp)) 
+            Button( 
+                onClick = { 
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) { 
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context) // Pass the context here 
+                    } else { 
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context) // Pass the context here 
+                    } 
+                }, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS") 
+            } 
+            Button( 
+                onClick = { 
+                    if (assistantViewModel.isListening) { // Use assistantViewModel.isListening here 
+                        Log.d("MainActivity", "Stop Listening button clicked") 
+                        assistantViewModel.stopListening() 
+                    } else { 
+                        Log.d("MainActivity", "Start Listening button clicked") 
+                        assistantViewModel.startListening() 
+                    } 
+                }, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text(if (assistantViewModel.isListening) "Stop Listening" else "Start Listening") // Use assistantViewModel.isListening here 
+            } 
+            Button( 
+                onClick = onSettingsClicked, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text("Settings") 
+            } 
+        } 
+    } 
 } 
-``` 
+ 
+ 
+```MediaPlaybackManager.kt``` 
+ 
+(additional import statements abridged) 
+interface MediaPlaybackManager { 
+    fun playAudio(filePath: String, context: Context) 
+    // Add other media control methods as needed 
+} 
  
  
 ```TextToSpeechService.kt``` 
  
-package com.example.hello_world
-
-interface TextToSpeechService {
-    fun speak(text: String, onFinish: (() -> Unit)? = null, onStart: (() -> Unit)? = null)
-    fun stop()
-    fun shutdown()
+package com.example.hello_world 
+(additional import statements abridged) 
+interface TextToSpeechService { 
+    fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String 
+    fun stop() 
+    fun getAudioFilePath(): String 
+    fun shutdown() 
 } 
-``` 
- 
- 
-```VoiceTriggerDetector.kt``` 
- 
-package com.example.hello_world
-import android.content.Context
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
-import android.os.Handler
-import android.os.Looper
-import androidx.compose.runtime.MutableState
-
-
-class VoiceTriggerDetector(
-    private val context: Context,
-    private val triggerWord: String,
-    private val onTriggerWordDetected: ((String) -> Unit),
-    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val latestPartialResult: MutableState<String?> // Add this line
-) : RecognitionListener {
-    private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-    private var keepListening: Boolean = true
-
-    init {
-        speechRecognizer.setRecognitionListener(this)
-    }
-
-    fun startListening() {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        }
-        speechRecognizer.startListening(intent)
-    }
-
-    fun stopListening() {
-        speechRecognizer.stopListening()
-    }
-
-    override fun onReadyForSpeech(params: Bundle) {
-        // Handle when the SpeechRecognizer is ready to receive speech input
-    }
-
-    override fun onBeginningOfSpeech() {
-        // Handle when the user starts speaking
-    }
-
-    override fun onRmsChanged(rmsdB: Float) {
-        // Handle changes in the received sound level (RMS)
-    }
-
-    override fun onBufferReceived(buffer: ByteArray) {
-        // Handle more sound data being available
-    }
-
-    override fun onEndOfSpeech() {
-        // Handle when the user stops speaking
-    }
-
-    override fun onError(error: Int) {
-        // Handle errors that may occur during speech recognition
-    }
-
-    override fun onResults(results: Bundle) {
-        val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        Log.d("VoiceTriggerDetector", "Final Results: $matches")
-        matches?.let { processResults(it) }
-    
-        // Restart listening if the trigger word is not detected and the flag is set to keep listening
-        if (keepListening) {
-            mainHandler.post { startListening() }
-        }
-    }
-
-    override fun onPartialResults(partialResults: Bundle) {
-        val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        Log.d("VoiceTriggerDetector", "Partial Results: $matches")
-    
-        // Set the latest partial result
-        latestPartialResult.value = matches?.firstOrNull()
-    
-        // Remove the startListening() call from here
-    }
-
-    override fun onEvent(eventType: Int, params: Bundle) {
-        // Handle any events that may occur during speech recognition
-    }
-
-
-
-    private fun processResults(matches: ArrayList<String>) {
-        for (result in matches) {
-            if (result.contains(triggerWord, ignoreCase = true)) {
-                // Trigger word detected, handle the event here
-                Log.d("VoiceTriggerDetector", "log: Trigger word detected")
-                val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces
-                onTriggerWordDetected(userMessage) // Pass the user message here
-                break
-            }
-        }
-    }
-} 
-``` 
  

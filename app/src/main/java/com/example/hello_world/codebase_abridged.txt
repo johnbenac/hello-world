@@ -1,0 +1,239 @@
+
+I am an AI code copilot. This is the workflow that I impliment with my user partner:
+1) user provide summary of codebase to me, the AI code copilot
+2) user provides issue to be solved to me, the AI code copilot. For example, this is a bug that is coming up when compiling, or this is the error in the logcat console log when deploying to android, or this is the undesired behavior of the app when in use, or this is the added functionality desired
+3) I, the AI code copilot, provides a string that tells the batch file which files referenced in the summary it should compile in their summarization for me, the AI code copilot
+4) The user runs the batch file to generate the codebase of selected files for the current issue being worked, so that the user can provide that codebase to me, the AI code copilot
+5) The user provide those files to the AI code copilot to diagnose or recommend steps forward. 
+6) The user may provide additional information such as logcat console log info, or compiler errors from Android Studio, or information on behavior in the app that is undesired, or information on the desired functionality
+
+This is the batch file that the user runs with the string provided by me, the AI code copilot, to generate the codebase of selected files for the current issue being worked, so that the user can provide that codebase to me, the AI code copilot
+@echo off
+setlocal enabledelayedexpansion
+
+echo Enter the file list string provided by the AI code copilot:
+set /p fileList="File list: "
+
+set "files=%fileList: =;%"
+echo Files to be compiled: %files%
+
+echo. > build.txt
+for %%f in (%files%) do (
+    echo ```%%f``` >> build.txt
+    echo. >> build.txt
+    set "prevLine="
+    set "importSection=false"
+    for /f "usebackq delims=" %%l in ("%%f") do (
+        set "curLine=%%l"
+        if "!curLine:~0,6!"=="import" (
+            if "!importSection!"=="false" (
+                set "curLine=(additional import statements abridged)"
+                set "importSection=true"
+            ) else (
+                set "curLine="
+            )
+        ) else (
+            set "importSection=false"
+        )
+        if not "!curLine!"=="" (
+            echo !curLine! >> build.txt
+        )
+        set "prevLine=!curLine!"
+    )
+    echo. >> build.txt
+)
+```end batch file
+
+```codebase summary
+                     
+
+
+                     ```AndroidMediaPlaybackManager.kt
+class AndroidMediaPlaybackManager()
+fun playAudio()
+fun start()
+fun pause()
+fun getDuration()
+fun getCurrentPosition()
+fun getBufferPercentage()
+fun isPlaying()
+fun seekTo()
+fun canPause()
+fun getAudioSessionId()
+fun canSeekBackward()
+fun canSeekForward()
+```
+
+```AndroidTextToSpeechService.kt
+class AndroidTextToSpeechService(private val context: Context)
+fun onInit()
+fun playSavedAudioFile()
+fun speak()
+fun onStart()
+fun onDone()
+fun onError()
+fun getAudioFilePath()
+fun stop()
+fun shutdown()
+```
+
+```AssistantViewModel.kt
+class AssistantViewModel(
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+    private val context: Context,
+    private val settingsViewModel: SettingsViewModel,
+    private val openAiApiService: OpenAiApiService
+)
+fun startListening()
+fun sendUserMessageToOpenAi()
+fun startPeriodicListeningCheck()
+fun onAssistantResponse()
+fun stopListening()
+fun onTriggerWordDetected()
+```
+
+```ConversationMessage.kt
+class ConversationMessage(val sender: String, val message: String, val audioFilePath: String)
+```
+
+```EditSettingsScreen.kt
+fun EditSettingsScreen()
+```
+
+```ElevenLabsTextToSpeechService.kt
+class ElevenLabsTextToSpeechService(
+    private val apiKey: String,
+    private val voiceId: String,
+    private val context: Context
+)
+fun speak()
+fun onFailure()
+fun onResponse()
+fun getAudioFilePath()
+fun createTtsRequestBody()
+fun buildTtsRequest()
+fun handleTtsResponse()
+fun setupMediaPlayer()
+fun stop()
+fun shutdown()
+```
+
+```MainActivity.kt
+class ConversationMessage(val sender: String, val message: String)
+class MainActivity()
+fun onCreate()
+fun requestAudioPermission()
+fun onResume()
+fun onPause()
+fun onDestroy()
+fun onRequestPermissionsResult()
+fun ConversationScreen()
+fun MediaControls()
+fun MessageCard()
+fun AssistantScreen()
+```
+
+```MediaPlaybackManager.kt
+interface MediaPlaybackManager()
+fun playAudio()
+```
+
+```OpenAiApiResponse.kt
+class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
+class OpenAiApiChoice(val message: OpenAiApiMessage)
+class OpenAiApiMessage(val role: String, val content: String)
+```
+
+```OpenAiApiService.kt
+class OpenAiMessage(val role: String, val content: String)
+class OpenAiApiRequest(
+    val messages: List<OpenAiMessage>,
+    val temperature: Double,
+    val max_tokens: Int,
+    val top_p: Int,
+    val frequency_penalty: Double,
+    val presence_penalty: Double,
+    val model: String,
+    val stream: Boolean
+)
+class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel, private val timeoutInSeconds: Long = 600)
+fun sendMessage()
+fun onFailure()
+fun onResponse()
+```
+
+```Profile.kt
+class Profile(
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+)
+```
+
+```SettingsScreen.kt
+fun SettingsScreen()
+fun CurrentSettings()
+```
+
+```SettingsViewModel.kt
+class SettingsViewModel()
+fun updateEditedProfileName()
+fun saveEditedProfile()
+fun updateEditedProfileSystemMessage()
+fun updateEditedProfileMaxLength()
+fun updateEditedProfileTemperature()
+fun updateEditedProfileFrequencyPenalty()
+fun updateEditedProfilePresencePenalty()
+fun updateEditedProfileModel()
+fun saveCustomProfile()
+fun deleteProfile()
+fun applyProfile()
+```
+
+```TextToSpeechService.kt
+interface TextToSpeechService()
+fun speak()
+fun stop()
+fun getAudioFilePath()
+fun shutdown()
+```
+
+```VoiceTriggerDetector.kt
+class VoiceTriggerDetector()
+fun startListening()
+fun stopListening()
+fun onReadyForSpeech()
+fun onBeginningOfSpeech()
+fun onRmsChanged()
+fun onBufferReceived()
+fun onEndOfSpeech()
+fun onError()
+fun onResults()
+fun onPartialResults()
+fun onEvent()
+fun processResults()
+```
+
+```Color.kt
+
+```
+
+```Theme.kt
+fun HelloworldTheme()
+```
+
+```Type.kt
+
+```
+
+
+    
+
+
+    ```end of codebase summary
+    
+    

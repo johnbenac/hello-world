@@ -10,8 +10,8 @@ import androidx.lifecycle.ViewModel
 class SettingsViewModel : ViewModel() {
 
     val defaultProfiles = listOf(
-        Profile("Profile 1", "You are an AI assistant named Jake.", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
-        Profile("Profile 2", "You are an AI assistant named Jane.", 150, 0.8, 0.1, 0.2, "gpt-3.5-turbo")
+        Profile("Profile 1", "You are an AI assistant named Jake.", 500, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
+        Profile("Profile 2", "You are an AI assistant named Jane.", 550, 0.8, 0.1, 0.2, "gpt-3.5-turbo")
     )
     val editedProfile = mutableStateOf(Profile("", "", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
 
