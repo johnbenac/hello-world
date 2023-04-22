@@ -1,5 +1,4 @@
 package com.example.hello_world
-import MediaPlaybackManager
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -19,12 +18,9 @@ class AssistantViewModel(
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-
-    private val audioFilePathState = mutableStateOf<String>("") // Add this line
 //    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
     val latestPartialResult = mutableStateOf<String?>(null) 
     val _isAssistantSpeaking = mutableStateOf(false)
-    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
 //    val shouldListenAfterSpeaking = mutableStateOf(true)
 
@@ -46,13 +42,11 @@ class AssistantViewModel(
 
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
         // Add user message to the conversation state
-        _conversationMessages.add(ConversationMessage("User", userMessage, mutableStateOf("")))
-
+        _conversationMessages.add(ConversationMessage("User", userMessage))
 
         val responseText = openAiApiService.sendMessage(_conversationMessages)
-        Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText")
-        onAssistantResponse(responseText, audioFilePathState)
-        textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = {
+        onAssistantResponse(responseText)
+        textToSpeechServiceState.value.speak(responseText, onFinish = {
             mainHandler.post {
                 _isAssistantSpeaking.value = false
 //                if (_isListening.value) {
@@ -65,7 +59,7 @@ class AssistantViewModel(
                 stopListening()
                 Log.d("AssistantViewModel", "log: stopListening called 1")
             }
-        }, audioFilePathState = audioFilePathState)
+        })
         _isAssistantSpeaking.value = true
     }
 
@@ -79,12 +73,9 @@ class AssistantViewModel(
         }, 3000) // Check every 3 seconds
     }
 
-    private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) {
+    private fun onAssistantResponse(response: String) {
         // Add assistant message to the conversation state
-
-        val audioFilePath = textToSpeechServiceState.value.getAudioFilePath()
-        Log.d("AssistantViewModel", "Received audio file path: $audioFilePath") // Add this line
-        _conversationMessages.add(ConversationMessage("Assistant", response, audioFilePathState))
+        _conversationMessages.add(ConversationMessage("Assistant", response))
     }
 
 
