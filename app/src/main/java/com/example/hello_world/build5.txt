@@ -1,0 +1,648 @@
+You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iteratively into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI: 
+ 
+```AndroidMediaPlaybackManager.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+//import android.media.session.MediaController 
+//import android.content.Context 
+//import android.media.MediaPlayer 
+(additional import statements abridged) 
+class AndroidMediaPlaybackManager : MediaPlaybackManager { 
+    private var mediaPlayer: MediaPlayer? = null 
+    private var mediaController: MediaController? = null 
+    override fun playAudio(filePath: String, context: Context) { 
+        mediaPlayer?.release() 
+        mediaPlayer = MediaPlayer().apply { 
+            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") 
+            setDataSource(filePath) 
+            prepare() 
+            Log.d("AndroidMediaPlaybackManager", "MediaPlayer prepared") // Add this line 
+            start() 
+            Log.d("AndroidMediaPlaybackManager", "MediaPlayer started") // Add this line 
+        } 
+        mediaController?.hide() 
+        mediaController = MediaController(context) 
+        mediaController?.setMediaPlayer(object : MediaController.MediaPlayerControl { 
+            override fun start() { 
+                mediaPlayer?.start() 
+                Log.d("AndroidMediaPlaybackManager", "MediaPlayerControl start() called") // Add this line 
+            } 
+            override fun pause() { 
+                mediaPlayer?.pause() 
+                Log.d("AndroidMediaPlaybackManager", "MediaPlayerControl pause() called") // Add this line 
+            } 
+            // Implement other required methods 
+            override fun getDuration(): Int = mediaPlayer?.duration ?: 0 
+            override fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0 
+            override fun getBufferPercentage(): Int = 0 
+            override fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false 
+            override fun seekTo(position: Int) { 
+                mediaPlayer?.seekTo(position) 
+            } 
+            override fun canPause(): Boolean { 
+                // Return true if your media player can pause, otherwise return false 
+                return true 
+            } 
+            override fun getAudioSessionId(): Int { 
+                // Return the audio session ID of your media player or 0 if not available 
+                return mediaPlayer?.audioSessionId ?: 0 
+            } 
+            override fun canSeekBackward(): Boolean { 
+                // Return true if your media player can seek backward, otherwise return false 
+                return true 
+            } 
+            override fun canSeekForward(): Boolean { 
+                // Return true if your media player can seek forward, otherwise return false 
+                return true 
+            } 
+        }) 
+        mediaController?.show() 
+    } 
+} 
+ 
+ 
+```AndroidTextToSpeechService.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+class AndroidTextToSpeechService(private val context: Context) : TextToSpeechService, TextToSpeech.OnInitListener { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private var textToSpeech: TextToSpeech = TextToSpeech(context, this) 
+    override fun onInit(status: Int) { 
+        if (status == TextToSpeech.SUCCESS) { 
+            val result = textToSpeech.setLanguage(Locale.getDefault()) 
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) { 
+                // Handle the case where the default language data or the language itself is not supported 
+            } 
+        } else { 
+            // Handle the case where TextToSpeech initialization failed 
+        } 
+    } 
+//    private fun playSavedAudioFile(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) { 
+//        val mediaPlayer = MediaPlayer().apply { 
+//            setDataSource(filePath) 
+//            setOnPreparedListener { 
+//                onStart?.invoke() 
+//                start() 
+//            } 
+//            setOnCompletionListener { 
+//                onFinish?.invoke() 
+//                release() 
+//            } 
+//            prepareAsync() 
+//        } 
+//    } 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val utteranceId = UUID.randomUUID().toString() 
+        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId") 
+        val filePath = File(context.getExternalFilesDir(null), "google_tts.mp3").absolutePath 
+        textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString()) 
+        textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() { 
+            override fun onStart(utteranceId: String) { 
+                onStart?.invoke() 
+                Log.d("AndroidTextToSpeechService", "log: onStart called") 
+            } 
+            override fun onDone(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId") 
+                Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath") 
+                audioFilePathState.value = filePath 
+                lastGeneratedAudioFilePath = filePath 
+//                Log.d("AndroidTextToSpeechService","about to attempt to play audio file") 
+//                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath 
+//                Log.d("AndroidTextToSpeechService","just attempted to play audio file") 
+            } 
+            override fun onError(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "log: onError called") 
+            } 
+        }) 
+//        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    override fun stop() { 
+        textToSpeech.stop() 
+    } 
+    override fun shutdown() { 
+        textToSpeech.shutdown() 
+    } 
+} 
+ 
+ 
+```AssistantViewModel.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+class AssistantViewModel( 
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
+    private val context: Context, 
+    private val settingsViewModel: SettingsViewModel, 
+    private val openAiApiService: OpenAiApiService 
+) : ViewModel() { 
+    private val audioFilePathState = mutableStateOf<String>("") // Add this line 
+//    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel) 
+    val latestPartialResult = mutableStateOf<String?>(null)  
+    val _isAssistantSpeaking = mutableStateOf(false) 
+    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager() 
+    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value 
+//    val shouldListenAfterSpeaking = mutableStateOf(true) 
+    private val mainHandler = Handler(Looper.getMainLooper()) 
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult) 
+    private val _conversationMessages = mutableStateListOf<ConversationMessage>() 
+    val conversationMessages: List<ConversationMessage> get() = _conversationMessages 
+    private val _isListening = mutableStateOf(false) 
+    val isListening: Boolean get() = _isListening.value 
+    fun startListening() { 
+        voiceTriggerDetector.startListening() 
+        _isListening.value = true 
+//        Log.d("AssistantViewModel", "log: startListening called 1") 
+    } 
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) { 
+        // Add user message to the conversation state 
+        _conversationMessages.add(ConversationMessage("User", userMessage, mutableStateOf(""))) 
+        val responseText = openAiApiService.sendMessage(_conversationMessages) 
+        Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText") 
+        onAssistantResponse(responseText, audioFilePathState) 
+        textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = { 
+            mainHandler.post { 
+                _isAssistantSpeaking.value = false 
+//                if (_isListening.value) { 
+                    startListening() 
+                    Log.d("AssistantViewModel", "log: startListening called 2") 
+//                } 
+            } 
+        }, onStart = { 
+            mainHandler.post { 
+                stopListening() 
+                Log.d("AssistantViewModel", "log: stopListening called 1") 
+            } 
+        }, audioFilePathState = audioFilePathState) 
+        _isAssistantSpeaking.value = true 
+    } 
+    private fun startPeriodicListeningCheck() { 
+        mainHandler.postDelayed({ 
+            if (_isListening.value && _isAssistantSpeaking.value) { 
+//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening") 
+                startListening() 
+            } 
+            startPeriodicListeningCheck() 
+        }, 3000) // Check every 3 seconds 
+    } 
+    private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) { 
+        // Add assistant message to the conversation state 
+        val audioFilePath = textToSpeechServiceState.value.getAudioFilePath() 
+        Log.d("AssistantViewModel", "Received audio file path: $audioFilePath") // Add this line 
+        _conversationMessages.add(ConversationMessage("Assistant", response, audioFilePathState)) 
+    } 
+    fun stopListening() { 
+        voiceTriggerDetector.stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 2") 
+        _isListening.value = false 
+    } 
+ECHO is off.
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter 
+        // Add user message to the conversation state 
+        Log.d("AssistantViewModel", "log: onTriggerWordDetected called") 
+ECHO is off.
+        // Stop listening 
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 3") 
+ECHO is off.
+        // Send the user message to OpenAI API and process the response 
+        viewModelScope.launch { 
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here 
+        } 
+    } 
+    init { 
+        startPeriodicListeningCheck() 
+    } 
+} 
+ 
+ 
+```ElevenLabsTextToSpeechService.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+//import android.os.ParcelFileDescriptor 
+(additional import statements abridged) 
+class ElevenLabsTextToSpeechService( 
+    private val apiKey: String, 
+    private val voiceId: String, 
+    private val context: Context 
+) : TextToSpeechService { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private val client = OkHttpClient() 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val fileName = "elevenlabs_tts_${UUID.randomUUID()}.mp3" 
+        val filePath = File(context.getExternalFilesDir(null), fileName).absolutePath 
+        val requestBody = createTtsRequestBody(text) 
+        val request = buildTtsRequest(requestBody) 
+        client.newCall(request).enqueue(object : Callback { 
+            override fun onFailure(call: Call, e: IOException) { 
+                Log.d("ElevenLabsTextToSpeechService", "onFailure called") 
+                Log.e("ElevenLabsTextToSpeechService", "onFailure called: ${e.message}", e) 
+            } 
+            override fun onResponse(call: Call, response: Response) { 
+                Log.d("ElevenLabsTextToSpeechService", "onResponse called") 
+                handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState) 
+            } 
+        }) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    private fun createTtsRequestBody(text: String): RequestBody { 
+        val json = """ 
+            { 
+                "text": "$text", 
+                "voice_settings": { 
+                    "stability": 0, 
+                    "similarity_boost": 0 
+                } 
+            } 
+        """.trimIndent() 
+        Log.d("ElevenLabsTextToSpeechService", "createTtsRequestBody called") 
+        return RequestBody.create("application/json".toMediaType(), json) 
+    } 
+    private fun buildTtsRequest(requestBody: RequestBody): Request { 
+        Log.d("ElevenLabsTextToSpeechService", "buildTtsRequest called") 
+        return Request.Builder() 
+            .url("https://api.elevenlabs.io/v1/text-to-speech/$voiceId") 
+            .addHeader("accept", "audio/mpeg") 
+            .addHeader("xi-api-key", apiKey) 
+            .post(requestBody) 
+            .build() 
+    } 
+    private fun handleTtsResponse( 
+        response: Response, 
+        filePath: String, 
+        onStart: (() -> Unit)?, 
+        onFinish: (() -> Unit)?, 
+        audioFilePathState: MutableState<String> // Add this parameter 
+    ) { 
+        Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called") 
+        if (response.isSuccessful) { 
+            response.body?.byteStream()?.let { inputStream -> 
+                FileOutputStream(File(filePath)).use { outputStream -> 
+                    inputStream.copyTo(outputStream) 
+                } 
+                Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath") 
+                audioFilePathState.value = filePath 
+//                setupMediaPlayer(filePath, onStart, onFinish) 
+            } 
+        } else { 
+            // Handle the unsuccessful response 
+            // ... 
+        } 
+    } 
+//    private fun setupMediaPlayer(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) { 
+//        Log.d("ElevenLabsTextToSpeechService", "setupMediaPlayer called") 
+//        val mediaPlayer = MediaPlayer().apply { 
+//            setDataSource(filePath) 
+//            setOnPreparedListener { 
+//                onStart?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onPrepared") 
+//                start() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer started") 
+//            } 
+//            setOnCompletionListener { 
+//                onFinish?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onCompletion") 
+//                release() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer released") 
+//            } 
+//            prepareAsync() 
+//            Log.d("ElevenLabsTextToSpeechService", "mediaPlayer preparedAsync") 
+//        } 
+//    } 
+    override fun stop() { 
+        // Implement stop functionality if needed 
+    } 
+    override fun shutdown() { 
+        // Implement shutdown functionality if needed 
+    } 
+} 
+ 
+ 
+```MainActivity.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+// data class ConversationMessage(val sender: String, val message: String) 
+class MainActivity : AppCompatActivity() { 
+    private lateinit var textToSpeechService: TextToSpeechService 
+    private lateinit var voiceTriggerDetector: VoiceTriggerDetector 
+    private lateinit var openAiApiService: OpenAiApiService 
+    private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1 
+    private val settingsViewModel = SettingsViewModel() 
+    private lateinit var assistantViewModel: AssistantViewModel 
+    override fun onCreate(savedInstanceState: Bundle?) { 
+//        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this)) 
+//        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) 
+        super.onCreate(savedInstanceState) 
+        Log.d("MainActivity", "log: MainActivity opened") 
+        // Request audio recording permission 
+        requestAudioPermission() 
+        // Initialize the TextToSpeechService state 
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this)) 
+        openAiApiService = OpenAiApiService("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", settingsViewModel) 
+        assistantViewModel = AssistantViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) 
+        voiceTriggerDetector = assistantViewModel.voiceTriggerDetector 
+        setContent { 
+            val navController = rememberNavController() 
+            NavHost(navController, startDestination = "assistant") { 
+                composable("assistant") { 
+                    AssistantScreen(assistantViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState) 
+                } 
+                composable("settings") { 
+                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController) 
+                } 
+                composable("edit-settings") { 
+                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() }) 
+                } 
+            } 
+        } 
+    } 
+    private fun requestAudioPermission() { 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) = PackageManager.PERMISSION_GRANTED) { 
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_REQUEST_CODE) 
+        } 
+    } 
+    override fun onResume() { 
+        super.onResume() 
+        voiceTriggerDetector.startListening() 
+    } 
+    override fun onPause() { 
+        super.onPause() 
+        textToSpeechService.stop() // Stop any ongoing speech 
+    } 
+    override fun onDestroy() { 
+        super.onDestroy() 
+        textToSpeechService.shutdown() 
+    } 
+    private val conversationMessages = mutableStateListOf<ConversationMessage>() 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) { 
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults) 
+        if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) { 
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) { 
+                // Permission was granted 
+                // Continue with creating the app UI and setting up listeners 
+            } else { 
+                // Permission was denied 
+                // Show a message to the user and close the app 
+                Toast.makeText(this, "Permission to record audio is required to use this app.", Toast.LENGTH_LONG).show() 
+                finish() 
+            } 
+        } 
+    } 
+} 
+//@Composable 
+//fun ConversationScreen(messages: List<ConversationMessage>, assistantViewModel: AssistantViewModel, context: Context) { 
+//    val listState = rememberLazyListState() 
+// 
+//    LaunchedEffect(messages.size) { 
+//        if (messages.isNotEmpty()) { 
+//            listState.animateScrollToItem(messages.size - 1) 
+//        } 
+//    } 
+// 
+//    LazyColumn(state = listState) { 
+//        items(messages) { message -> 
+//            MessageCard(message) { audioFilePath -> 
+//                assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) 
+//            } 
+//        } 
+//    } 
+//} 
+@Composable 
+fun MediaControls( 
+    onPlay: () -> Unit, 
+    onPause: () -> Unit, 
+    onSeekForward: () -> Unit, 
+    onSeekBackward: () -> Unit 
+) { 
+    Row { 
+        IconButton(onClick = { 
+            Log.d("MediaControls", "Play button clicked") // Add this line 
+            onPlay() 
+        }) { 
+            Icon(Icons.Filled.PlayArrow, contentDescription = "Play") 
+        } 
+        IconButton(onClick = onPause) { 
+            Icon(Icons.Filled.AccountBox, contentDescription = "Pause") 
+        } 
+        IconButton(onClick = onSeekForward) { 
+            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") 
+        } 
+        IconButton(onClick = onSeekBackward) { 
+            Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Seek Backward") 
+        } 
+    } 
+} 
+@Composable 
+fun MessageCard( 
+    message: ConversationMessage, 
+    onPlayAudio: (String) -> Unit 
+) { 
+    Log.d("MessageCard", "Message: $message") 
+    Card( 
+        modifier = Modifier 
+            .padding(8.dp) 
+            .fillMaxWidth() 
+    ) { 
+        Column( 
+            modifier = Modifier 
+                .padding(16.dp) 
+        ) { 
+            Text(text = message.sender, fontWeight = FontWeight.Bold) 
+            Spacer(modifier = Modifier.height(4.dp)) 
+            Text(text = message.message) 
+            Spacer(modifier = Modifier.height(8.dp)) 
+            MediaControls( 
+                onPlay = { 
+                    Log.d("MessageCard", "Playing audio from file: ${message.audioFilePath.value}") // Add this line 
+                    onPlayAudio(message.audioFilePath.value) 
+                }, 
+                onPause = { /* Implement pause functionality in AssistantViewModel and pass the callback here */ }, 
+                onSeekForward = { /* Implement seek forward functionality in AssistantViewModel and pass the callback here */ }, 
+                onSeekBackward = { /* Implement seek backward functionality in AssistantViewModel and pass the callback here */ } 
+            ) 
+        } 
+    } 
+} 
+@Composable 
+fun AssistantScreen( 
+    assistantViewModel: AssistantViewModel, 
+    settingsViewModel: SettingsViewModel, 
+    onSettingsClicked: () -> Unit, 
+    textToSpeechServiceState: MutableState<TextToSpeechService> 
+) { 
+    val context = LocalContext.current // Get the current context 
+    // ... 
+    BoxWithConstraints( 
+        modifier = Modifier 
+            .fillMaxSize() 
+            .padding(16.dp) 
+    ) { 
+        val maxHeight = constraints.maxHeight 
+        Column(modifier = Modifier.fillMaxSize()) { 
+            LazyColumn( 
+                modifier = Modifier 
+                    .weight(1f) 
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) 
+            ) { 
+                items(assistantViewModel.conversationMessages) { message -> 
+                    MessageCard(message) { audioFilePath -> 
+                        assistantViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) 
+                    } 
+                } 
+            } 
+            Spacer(modifier = Modifier.height(16.dp)) 
+            Text( 
+                text = if (assistantViewModel.isListening) "Listening..." else "Not Listening", // Use assistantViewModel.isListening here 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) // Add this line to show the listening status 
+            Spacer(modifier = Modifier.height(16.dp)) 
+            Button( 
+                onClick = { 
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) { 
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context) // Pass the context here 
+                    } else { 
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context) // Pass the context here 
+                    } 
+                }, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS") 
+            } 
+            Button( 
+                onClick = { 
+                    if (assistantViewModel.isListening) { // Use assistantViewModel.isListening here 
+                        Log.d("MainActivity", "Stop Listening button clicked") 
+                        assistantViewModel.stopListening() 
+                    } else { 
+                        Log.d("MainActivity", "Start Listening button clicked") 
+                        assistantViewModel.startListening() 
+                    } 
+                }, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text(if (assistantViewModel.isListening) "Stop Listening" else "Start Listening") // Use assistantViewModel.isListening here 
+            } 
+            Button( 
+                onClick = onSettingsClicked, 
+                modifier = Modifier.align(Alignment.CenterHorizontally) 
+            ) { 
+                Text("Settings") 
+            } 
+        } 
+    } 
+} 
+ 
+ 
+```MediaPlaybackManager.kt``` 
+ 
+(additional import statements abridged) 
+interface MediaPlaybackManager { 
+    fun playAudio(filePath: String, context: Context) 
+    // Add other media control methods as needed 
+} 
+ 
+ 
+```TextToSpeechService.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+interface TextToSpeechService { 
+    fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String 
+    fun stop() 
+    fun getAudioFilePath(): String 
+    fun shutdown() 
+} 
+ 
+ 
+```VoiceTriggerDetector.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+class VoiceTriggerDetector( 
+    private val context: Context, 
+    private val triggerWord: String, 
+    private val onTriggerWordDetected: ((String) -> Unit), 
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()), 
+    private val latestPartialResult: MutableState<String?> // Add this line 
+) : RecognitionListener { 
+    private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context) 
+    private var keepListening: Boolean = true 
+    init { 
+        speechRecognizer.setRecognitionListener(this) 
+    } 
+    fun startListening() { 
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply { 
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM) 
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName) 
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true) 
+        } 
+        speechRecognizer.startListening(intent) 
+    } 
+    fun stopListening() { 
+        speechRecognizer.stopListening() 
+    } 
+    override fun onReadyForSpeech(params: Bundle) { 
+        // Handle when the SpeechRecognizer is ready to receive speech input 
+    } 
+    override fun onBeginningOfSpeech() { 
+        // Handle when the user starts speaking 
+    } 
+    override fun onRmsChanged(rmsdB: Float) { 
+        // Handle changes in the received sound level (RMS) 
+    } 
+    override fun onBufferReceived(buffer: ByteArray) { 
+        // Handle more sound data being available 
+    } 
+    override fun onEndOfSpeech() { 
+        // Handle when the user stops speaking 
+    } 
+    override fun onError(error: Int) { 
+        // Handle errors that may occur during speech recognition 
+    } 
+    override fun onResults(results: Bundle) { 
+        val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) 
+        Log.d("VoiceTriggerDetector", "Final Results: $matches") 
+        matches?.let { processResults(it) } 
+ECHO is off.
+        // Restart listening if the trigger word is not detected and the flag is set to keep listening 
+        if (keepListening) { 
+            mainHandler.post { startListening() } 
+        } 
+    } 
+    override fun onPartialResults(partialResults: Bundle) { 
+        val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) 
+        Log.d("VoiceTriggerDetector", "Partial Results: $matches") 
+ECHO is off.
+        // Set the latest partial result 
+        latestPartialResult.value = matches?.firstOrNull() 
+ECHO is off.
+        // Remove the startListening() call from here 
+    } 
+    override fun onEvent(eventType: Int, params: Bundle) { 
+        // Handle any events that may occur during speech recognition 
+    } 
+    private fun processResults(matches: ArrayList<String>) { 
+        for (result in matches) { 
+            if (result.contains(triggerWord, ignoreCase = true)) { 
+                // Trigger word detected, handle the event here 
+                Log.d("VoiceTriggerDetector", "log: Trigger word detected") 
+                val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces 
+                onTriggerWordDetected(userMessage) // Pass the user message here 
+                break 
+            } 
+        } 
+    } 
+} 
+ 
