@@ -67,7 +67,6 @@ fun canSeekForward()
 ```AndroidTextToSpeechService.kt
 class AndroidTextToSpeechService(private val context: Context)
 fun onInit()
-fun playSavedAudioFile()
 fun speak()
 fun onStart()
 fun onDone()
@@ -96,8 +95,7 @@ fun onTriggerWordDetected()
 class ConversationMessage(
     val sender: String,
     val message: String,
-    val audioFilePath: String
-// // Add this property
+    val audioFilePath: MutableState<String>
 )
 ```
 

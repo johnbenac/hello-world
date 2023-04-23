@@ -19,7 +19,7 @@ class AssistantViewModel(
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-    private val audioFilePathState = mutableStateOf<String>("") // Add this line
+//    private val audioFilePathState = mutableStateOf<String>("") // Add this line
     //    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAssistantSpeaking = mutableStateOf(false)
@@ -38,10 +38,12 @@ class AssistantViewModel(
 //        Log.d("AssistantViewModel", "log: startListening called 1")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+        val audioFilePathState = mutableStateOf("")
         // Add user message to the conversation state
         _conversationMessages.add(ConversationMessage("User", userMessage, audioFilePathState))
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText")
+        Log.d("AssistantViewModel", "User message added with audioFilePathState: $audioFilePathState")
         onAssistantResponse(responseText, audioFilePathState)
         textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = {
             mainHandler.post {
@@ -56,7 +58,8 @@ class AssistantViewModel(
                 stopListening()
                 Log.d("AssistantViewModel", "log: stopListening called 1")
             }
-        }, audioFilePathState = audioFilePathState)
+        }, audioFilePathState = _conversationMessages.last().audioFilePath)
+        Log.d("AssistantViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
         _isAssistantSpeaking.value = true
     }
     private fun startPeriodicListeningCheck() {
@@ -69,9 +72,11 @@ class AssistantViewModel(
         }, 3000) // Check every 3 seconds
     }
     private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) {
+        val assistantAudioFilePathState = mutableStateOf("")
         Log.d("AssistantViewModel", "log: onAssistantResponse called")
         // Add assistant message to the conversation state
-        _conversationMessages.add(ConversationMessage("Assistant", response, audioFilePathState))
+        _conversationMessages.add(ConversationMessage("Assistant", response, assistantAudioFilePathState))
+        Log.d("AssistantViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
         Log.d("AssistantViewModel", "log: _conversationMessages added")
     }
     fun stopListening() {

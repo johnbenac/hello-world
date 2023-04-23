@@ -1,60 +1,98 @@
  
-```AndroidMediaPlaybackManager.kt``` 
+```AssistantViewModel.kt``` 
  
 package com.example.hello_world 
 (additional import statements abridged) 
-class AndroidMediaPlaybackManager : MediaPlaybackManager { 
-    private var mediaPlayer: MediaPlayer? = null 
-    private var mediaController: MediaController? = null 
-    override fun playAudio(filePath: String, context: Context) { 
-        mediaPlayer?.release() 
-        mediaPlayer = MediaPlayer().apply { 
-            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") // Add this line 
-            setDataSource(filePath) 
-            prepare() 
+class AssistantViewModel( 
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
+    private val context: Context, 
+    private val settingsViewModel: SettingsViewModel, 
+    private val openAiApiService: OpenAiApiService 
+) : ViewModel() { 
+    private val audioFilePathState = mutableStateOf<String>("") // Add this line 
+    //    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel) 
+    val latestPartialResult = mutableStateOf<String?>(null) 
+    val _isAssistantSpeaking = mutableStateOf(false) 
+    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager() 
+    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value 
+    //    val shouldListenAfterSpeaking = mutableStateOf(true) 
+    private val mainHandler = Handler(Looper.getMainLooper()) 
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult) 
+    private val _conversationMessages = mutableStateListOf<ConversationMessage>() 
+    val conversationMessages: List<ConversationMessage> get() = _conversationMessages 
+    private val _isListening = mutableStateOf(false) 
+    val isListening: Boolean get() = _isListening.value 
+    fun startListening() { 
+        voiceTriggerDetector.startListening() 
+        _isListening.value = true 
+//        Log.d("AssistantViewModel", "log: startListening called 1") 
+    } 
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) { 
+        // Add user message to the conversation state 
+        _conversationMessages.add(ConversationMessage("User", userMessage, audioFilePathState)) 
+        val responseText = openAiApiService.sendMessage(_conversationMessages) 
+        Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText") 
+        onAssistantResponse(responseText, audioFilePathState) 
+        textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = { 
+            mainHandler.post { 
+                _isAssistantSpeaking.value = false 
+//                if (_isListening.value) { 
+                startListening() 
+                Log.d("AssistantViewModel", "log: startListening called 2") 
+//                } 
+            } 
+        }, onStart = { 
+            mainHandler.post { 
+                stopListening() 
+                Log.d("AssistantViewModel", "log: stopListening called 1") 
+            } 
+        }, audioFilePathState = audioFilePathState) 
+        _isAssistantSpeaking.value = true 
+    } 
+    private fun startPeriodicListeningCheck() { 
+        mainHandler.postDelayed({ 
+            if (_isListening.value && _isAssistantSpeaking.value) { 
+//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening") 
+                startListening() 
+            } 
+            startPeriodicListeningCheck() 
+        }, 3000) // Check every 3 seconds 
+    } 
+    private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) { 
+        Log.d("AssistantViewModel", "log: onAssistantResponse called") 
+        // Add assistant message to the conversation state 
+        _conversationMessages.add(ConversationMessage("Assistant", response, audioFilePathState)) 
+        Log.d("AssistantViewModel", "log: _conversationMessages added") 
+    } 
+    fun stopListening() { 
+        voiceTriggerDetector.stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 2") 
+        _isListening.value = false 
+    } 
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter 
+        // Add user message to the conversation state 
+        Log.d("AssistantViewModel", "log: onTriggerWordDetected called") 
+        // Stop listening 
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening() 
+        Log.d("AssistantViewModel", "log: stopListening called 3") 
+        // Send the user message to OpenAI API and process the response 
+        viewModelScope.launch { 
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here 
         } 
-        mediaController?.hide() 
-        mediaController = MediaController(context) 
-        mediaController?.setMediaPlayer(object : MediaController.MediaPlayerControl { 
-            override fun start() = mediaPlayer?.start() ?: Unit 
-            override fun pause() = mediaPlayer?.pause() ?: Unit 
-            // Implement other required methods 
-            override fun getDuration(): Int = mediaPlayer?.duration ?: 0 
-            override fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0 
-            override fun getBufferPercentage(): Int = 0 
-            override fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false 
-            override fun seekTo(position: Int) { 
-                mediaPlayer?.seekTo(position) 
-            } 
-            override fun canPause(): Boolean { 
-                // Return true if your media player can pause, otherwise return false 
-                return true 
-            } 
-            override fun getAudioSessionId(): Int { 
-                // Return the audio session ID of your media player or 0 if not available 
-                return mediaPlayer?.audioSessionId ?: 0 
-            } 
-            override fun canSeekBackward(): Boolean { 
-                // Return true if your media player can seek backward, otherwise return false 
-                return true 
-            } 
-            override fun canSeekForward(): Boolean { 
-                // Return true if your media player can seek forward, otherwise return false 
-                return true 
-            } 
-        }) 
-        mediaController?.show() 
+    } 
+    init { 
+        startPeriodicListeningCheck() 
     } 
 } 
  
-```MediaPlaybackManager.kt``` 
+```ConversationMessage.kt``` 
  
-package com.example.hello_world 
 (additional import statements abridged) 
-interface MediaPlaybackManager { 
-    fun playAudio(filePath: String, context: Context) 
-    // Add other media control methods as needed 
-} 
+data class ConversationMessage( 
+    val sender: String, 
+    val message: String, 
+    val audioFilePath: MutableState<String> 
+) 
  
 ```MainActivity.kt``` 
  
@@ -265,5 +303,16 @@ fun AssistantScreen(
             } 
         } 
     } 
+} 
+ 
+```TextToSpeechService.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+interface TextToSpeechService { 
+    fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String 
+    fun stop() 
+    fun getAudioFilePath(): String 
+    fun shutdown() 
 } 
  

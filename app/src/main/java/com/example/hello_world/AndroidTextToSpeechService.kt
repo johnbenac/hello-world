@@ -23,24 +23,13 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
             // Handle the case where TextToSpeech initialization failed
         }
     }
-    //    private fun playSavedAudioFile(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) {
-//        val mediaPlayer = MediaPlayer().apply {
-//            setDataSource(filePath)
-//            setOnPreparedListener {
-//                onStart?.invoke()
-//                start()
-//            }
-//            setOnCompletionListener {
-//                onFinish?.invoke()
-//                release()
-//            }
-//            prepareAsync()
-//        }
-//    }
+
     override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
         val utteranceId = UUID.randomUUID().toString()
         Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId")
-        val filePath = File(context.getExternalFilesDir(null), "google_tts.mp3").absolutePath
+        val uniqueFileName = "google_tts_${UUID.randomUUID()}.mp3"
+        val filePath = File(context.getExternalFilesDir(null), uniqueFileName).absolutePath
+
         textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString())
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) {
