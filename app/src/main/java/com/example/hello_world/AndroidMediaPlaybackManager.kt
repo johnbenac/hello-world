@@ -7,21 +7,33 @@ import android.util.Log
 import android.widget.MediaController
 
 class AndroidMediaPlaybackManager : MediaPlaybackManager {
-    private var mediaPlayer: MediaPlayer? = null
+    var mediaPlayer: MediaPlayer? = null
     private var mediaController: MediaController? = null
+    private var currentFilePath: String? = null
+    private var playbackPosition: Int = 0
     override fun pause() {
-        mediaPlayer?.pause()
+        mediaPlayer?.apply {
+            playbackPosition = currentPosition // Save the playback position
+            pause()
+        }
     }
     override fun isPlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false
     }
     override fun playAudio(filePath: String, context: Context) {
-        mediaPlayer?.release()
-        mediaPlayer = MediaPlayer().apply {
-            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") 
-            setDataSource(filePath)
-            prepare()
-            start()
+        if (mediaPlayer != null && currentFilePath == filePath) {
+            mediaPlayer?.apply {
+                seekTo(playbackPosition) // Set the playback position
+                start()
+            }
+        } else {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath")
+                setDataSource(filePath)
+                prepare()
+                start()
+            }
         }
         mediaController?.hide()
         mediaController = MediaController(context)

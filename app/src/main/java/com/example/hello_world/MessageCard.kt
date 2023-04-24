@@ -46,8 +46,8 @@ fun MessageCard( // Composable for the message card
                         Log.d("MessageCard", "Pausing audio from file: ${message.audioFilePath.value}")
                         mediaPlaybackManager.pause()
                     } else {
-                        Log.d("MessageCard", "Playing audio from file: ${message.audioFilePath.value}")
-                        mediaPlaybackManager.playAudio(message.audioFilePath.value, context) // Call the playAudio function with the audio file path and context
+                        Log.d("MessageCard", "Resuming audio from file: ${message.audioFilePath.value}")
+                        mediaPlaybackManager.playAudio(message.audioFilePath.value, context)
                     }
                 },
                 onSeekForward = { /* Implement seek forward functionality in MainViewModel and pass the callback here */ }, // When the seek forward button is pressed
