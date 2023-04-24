@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.compose.runtime.MutableState
 
 
@@ -76,6 +77,7 @@ class VoiceTriggerDetector(
     override fun onPartialResults(partialResults: Bundle) {
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         Log.d("VoiceTriggerDetector", "Partial Results: $matches")
+        Toast.makeText(context, "Partial Results: $matches", Toast.LENGTH_SHORT).show()
     
         // Set the latest partial result
         latestPartialResult.value = matches?.firstOrNull()

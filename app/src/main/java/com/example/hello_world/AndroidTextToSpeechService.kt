@@ -10,7 +10,11 @@ import java.util.Locale
 
 
 
-class AndroidTextToSpeechService(private val context: Context) : TextToSpeechService, TextToSpeech.OnInitListener {
+class AndroidTextToSpeechService(
+    private val context: Context,
+    override val mediaPlaybackManager: MediaPlaybackManager,
+    private val onPlaybackFinished: () -> Unit
+) : TextToSpeechService, TextToSpeech.OnInitListener {
     private var lastGeneratedAudioFilePath: String? = null
     private var textToSpeech: TextToSpeech = TextToSpeech(context, this)
     override fun onInit(status: Int) {
@@ -44,6 +48,7 @@ class AndroidTextToSpeechService(private val context: Context) : TextToSpeechSer
 //                Log.d("AndroidTextToSpeechService","about to attempt to play audio file")
 //                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath
 //                Log.d("AndroidTextToSpeechService","just attempted to play audio file")
+                mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished)
             }
             override fun onError(utteranceId: String) {
                 Log.d("AndroidTextToSpeechService", "log: onError called")

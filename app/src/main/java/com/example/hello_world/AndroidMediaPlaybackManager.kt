@@ -22,7 +22,7 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
     override fun isPlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false
     }
-    override fun playAudio(filePath: String, context: Context) {
+    override fun playAudio(filePath: String, context: Context, onFinish: (() -> Unit)?) {
         if (filePath.isEmpty()) {
             Toast.makeText(context, "Audio file not loaded", Toast.LENGTH_SHORT).show()
             return
@@ -41,6 +41,8 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
                 setDataSource(filePath)
                 prepare()
                 start()
+                setOnCompletionListener {
+                    onFinish?.invoke()}
             }
         }
         mediaController?.hide()

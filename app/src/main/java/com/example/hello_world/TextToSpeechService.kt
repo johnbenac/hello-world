@@ -4,6 +4,7 @@ import androidx.compose.runtime.MutableState
 
 
 interface TextToSpeechService {
+    val mediaPlaybackManager: MediaPlaybackManager
     fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
     fun stop()
     fun getAudioFilePath(): String

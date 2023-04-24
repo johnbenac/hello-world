@@ -9,6 +9,17 @@ PS. When providing larger snippets of code, I wont remove my Log.d() statements,
  
 Here is the codebase: 
  
+```MediaPlaybackManager.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+interface MediaPlaybackManager { 
+    fun playAudio(filePath: String, context: Context, onFinish: (() -> Unit)? = null) 
+    fun isPlaying(): Boolean 
+    fun pause() 
+    // Add other media control methods as needed 
+} 
+ 
 ```AndroidMediaPlaybackManager.kt``` 
  
 package com.example.hello_world 
@@ -28,7 +39,11 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
     override fun isPlaying(): Boolean { 
         return mediaPlayer?.isPlaying ?: false 
     } 
-    override fun playAudio(filePath: String, context: Context) { 
+    override fun playAudio(filePath: String, context: Context, onFinish: (() -> Unit)?) { 
+        if (filePath.isEmpty()) { 
+            Toast.makeText(context, "Audio file not loaded", Toast.LENGTH_SHORT).show() 
+            return 
+        } 
         if (mediaPlayer = null && currentFilePath == filePath) { 
             mediaPlayer?.apply { 
                 Log.d("AndroidMediaPlaybackManager", "Resuming audio at position: $playbackPosition") 
@@ -43,6 +58,8 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
                 setDataSource(filePath) 
                 prepare() 
                 start() 
+                setOnCompletionListener { 
+                    onFinish?.invoke()} 
             } 
         } 
         mediaController?.hide() 
@@ -90,35 +107,186 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
     } 
 } 
  
-```ConversationMessage.kt``` 
- 
-(additional import statements abridged) 
-data class ConversationMessage( 
-    val sender: String, 
-    val message: String, 
-    val audioFilePath: MutableState<String> 
-) 
- 
-```MediaPlaybackManager.kt``` 
- 
-package com.example.hello_world 
-(additional import statements abridged) 
-interface MediaPlaybackManager { 
-    fun playAudio(filePath: String, context: Context) 
-    fun isPlaying(): Boolean 
-    fun pause() 
-    // Add other media control methods as needed 
-} 
- 
 ```TextToSpeechService.kt``` 
  
 package com.example.hello_world 
 (additional import statements abridged) 
 interface TextToSpeechService { 
+    val mediaPlaybackManager: MediaPlaybackManager 
     fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String 
     fun stop() 
     fun getAudioFilePath(): String 
     fun shutdown() 
+} 
+ 
+```AndroidTextToSpeechService.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+class AndroidTextToSpeechService( 
+    private val context: Context, 
+    override val mediaPlaybackManager: MediaPlaybackManager, 
+    private val onPlaybackFinished: () -> Unit 
+) : TextToSpeechService, TextToSpeech.OnInitListener { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private var textToSpeech: TextToSpeech = TextToSpeech(context, this) 
+    override fun onInit(status: Int) { 
+        if (status == TextToSpeech.SUCCESS) { 
+            val result = textToSpeech.setLanguage(Locale.getDefault()) 
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) { 
+                // Handle the case where the default language data or the language itself is not supported 
+            } 
+        } else { 
+            // Handle the case where TextToSpeech initialization failed 
+        } 
+    } 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val utteranceId = UUID.randomUUID().toString() 
+        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId") 
+        val uniqueFileName = "google_tts_${UUID.randomUUID()}.mp3" 
+        val filePath = File(context.getExternalFilesDir(null), uniqueFileName).absolutePath 
+        textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString()) 
+        textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() { 
+            override fun onStart(utteranceId: String) { 
+                onStart?.invoke() 
+                Log.d("AndroidTextToSpeechService", "log: onStart called") 
+            } 
+            override fun onDone(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId") 
+                Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath") 
+                audioFilePathState.value = filePath 
+                lastGeneratedAudioFilePath = filePath 
+//                Log.d("AndroidTextToSpeechService","about to attempt to play audio file") 
+//                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath 
+//                Log.d("AndroidTextToSpeechService","just attempted to play audio file") 
+                mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished) 
+            } 
+            override fun onError(utteranceId: String) { 
+                Log.d("AndroidTextToSpeechService", "log: onError called") 
+            } 
+        }) 
+//        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    override fun stop() { 
+        textToSpeech.stop() 
+    } 
+    override fun shutdown() { 
+        textToSpeech.shutdown() 
+    } 
+} 
+ 
+```ElevanLabsTextToSpeechSerivce.kt``` 
+ 
+package com.example.hello_world 
+(additional import statements abridged) 
+//import android.os.ParcelFileDescriptor 
+(additional import statements abridged) 
+class ElevenLabsTextToSpeechService( 
+    private val apiKey: String, 
+    private val voiceId: String, 
+    private val context: Context, 
+    override val mediaPlaybackManager: MediaPlaybackManager, 
+    private val onPlaybackFinished: () -> Unit 
+) : TextToSpeechService { 
+    private var lastGeneratedAudioFilePath: String? = null 
+    private val client = OkHttpClient() 
+    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String { 
+        val fileName = "elevenlabs_tts_${UUID.randomUUID()}.mp3" 
+        val filePath = File(context.getExternalFilesDir(null), fileName).absolutePath 
+        val requestBody = createTtsRequestBody(text) 
+        val request = buildTtsRequest(requestBody) 
+        client.newCall(request).enqueue(object : Callback { 
+            override fun onFailure(call: Call, e: IOException) { 
+                Log.d("ElevenLabsTextToSpeechService", "onFailure called") 
+                Log.e("ElevenLabsTextToSpeechService", "onFailure called: ${e.message}", e) 
+            } 
+            override fun onResponse(call: Call, response: Response) { 
+                Log.d("ElevenLabsTextToSpeechService", "onResponse called") 
+                handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState) 
+            } 
+        }) 
+        lastGeneratedAudioFilePath = filePath 
+        return filePath 
+    } 
+    override fun getAudioFilePath(): String { 
+        return lastGeneratedAudioFilePath ?: "" 
+    } 
+    private fun createTtsRequestBody(text: String): RequestBody { 
+        val json = """ 
+            { 
+                "text": "$text", 
+                "voice_settings": { 
+                    "stability": 0, 
+                    "similarity_boost": 0 
+                } 
+            } 
+        """.trimIndent() 
+        Log.d("ElevenLabsTextToSpeechService", "createTtsRequestBody called") 
+        return RequestBody.create("application/json".toMediaType(), json) 
+    } 
+    private fun buildTtsRequest(requestBody: RequestBody): Request { 
+        Log.d("ElevenLabsTextToSpeechService", "buildTtsRequest called") 
+        return Request.Builder() 
+            .url("https://api.elevenlabs.io/v1/text-to-speech/$voiceId") 
+            .addHeader("accept", "audio/mpeg") 
+            .addHeader("xi-api-key", apiKey) 
+            .post(requestBody) 
+            .build() 
+    } 
+    private fun handleTtsResponse( 
+        response: Response, 
+        filePath: String, 
+        onStart: (() -> Unit)?, 
+        onFinish: (() -> Unit)?, // Add this line 
+        audioFilePathState: MutableState<String> 
+    ) { 
+        Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called") 
+        if (response.isSuccessful) { 
+            response.body?.byteStream()?.let { inputStream -> 
+                FileOutputStream(File(filePath)).use { outputStream -> 
+                    inputStream.copyTo(outputStream) 
+                } 
+                Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath") 
+                audioFilePathState.value = filePath 
+//                setupMediaPlayer(filePath, onStart, onFinish) 
+            } 
+        } else { 
+            // Handle the unsuccessful response 
+            // ... 
+        } 
+        mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished) 
+    } 
+    //    private fun setupMediaPlayer(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) { 
+//        Log.d("ElevenLabsTextToSpeechService", "setupMediaPlayer called") 
+//        val mediaPlayer = MediaPlayer().apply { 
+//            setDataSource(filePath) 
+//            setOnPreparedListener { 
+//                onStart?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onPrepared") 
+//                start() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer started") 
+//            } 
+//            setOnCompletionListener { 
+//                onFinish?.invoke() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onCompletion") 
+//                release() 
+//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer released") 
+//            } 
+//            prepareAsync() 
+//            Log.d("ElevenLabsTextToSpeechService", "mediaPlayer preparedAsync") 
+//        } 
+//    } 
+    override fun stop() { 
+        // Implement stop functionality if needed 
+    } 
+    override fun shutdown() { 
+        // Implement shutdown functionality if needed 
+    } 
 } 
  
 

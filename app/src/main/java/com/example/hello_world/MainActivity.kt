@@ -24,13 +24,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var openAiApiService: OpenAiApiService // Create an OpenAI API service
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1 // Create a request code for requesting audio permission
     private val settingsViewModel = SettingsViewModel() // Create a settings view model
+    private val mediaPlaybackManager = AndroidMediaPlaybackManager()
     private lateinit var mainViewModel: MainViewModel // Create an main view model
+
 
     override fun onCreate(savedInstanceState: Bundle?) { // Called when the activity is starting
         Log.d("MainActivity", "log: MainActivity opened") // Log that the main activity was opened
         super.onCreate(savedInstanceState) // Call the super class onCreate to complete the creation of activity like the view hierarchy
         requestAudioPermission() // Request audio permission
-        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this)) // Create the text to speech service, AndroidTextToSpeechService is the default implementation
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this, mediaPlaybackManager) { mainViewModel.startListening() }) // Create the text to speech service, AndroidTextToSpeechService is the default implementation
         openAiApiService = OpenAiApiService("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", settingsViewModel) // Create the OpenAI API service
         mainViewModel = MainViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) // Create the main view model
         voiceTriggerDetector = mainViewModel.voiceTriggerDetector // Create the voice trigger detector
@@ -38,7 +40,7 @@ class MainActivity : AppCompatActivity() {
             val navController = rememberNavController() // Create a nav controller
             NavHost(navController, startDestination = "main") { // Create a nav host
                 composable("main") { // Create a composable for the main screen
-                    MainScreen(mainViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState) // Show the main screen
+                    MainScreen(mainViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState, mediaPlaybackManager) // Show the main screen
                 } 
                 composable("settings") { // Create a composable for the settings screen
                     SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController) // Show the settings screen

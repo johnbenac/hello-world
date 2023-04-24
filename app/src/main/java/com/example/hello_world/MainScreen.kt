@@ -27,7 +27,8 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
     mainViewModel: MainViewModel, // The main view model
     settingsViewModel: SettingsViewModel, // The settings view model
     onSettingsClicked: () -> Unit, // Function to call when the settings button is pressed
-    textToSpeechServiceState: MutableState<TextToSpeechService>
+    textToSpeechServiceState: MutableState<TextToSpeechService>,
+    mediaPlaybackManager: MediaPlaybackManager
 ) {
     val context = LocalContext.current // Get the current context
     val scrollToBottomClicked = remember { mutableStateOf(false) }
@@ -84,9 +85,9 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
             Button(
                 onClick = { // When the start listening button is pressed
                     if (textToSpeechServiceState.value is AndroidTextToSpeechService) { // If the text to speech service is the Android text to speech service
-                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context)  // Set the text to speech service to the Eleven Labs text to speech service
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { mainViewModel.startListening() }  // Set the text to speech service to the Eleven Labs text to speech service
                     } else { // If the text to speech service is not the Android text to speech service
-                        textToSpeechServiceState.value = AndroidTextToSpeechService(context) // Set the text to speech service to the Android text to speech service
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { mainViewModel.startListening() } // Set the text to speech service to the Android text to speech service
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally

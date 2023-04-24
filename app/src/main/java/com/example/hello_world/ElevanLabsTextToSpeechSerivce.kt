@@ -16,7 +16,9 @@ import java.util.UUID
 class ElevenLabsTextToSpeechService(
     private val apiKey: String,
     private val voiceId: String,
-    private val context: Context
+    private val context: Context,
+    override val mediaPlaybackManager: MediaPlaybackManager,
+    private val onPlaybackFinished: () -> Unit
 ) : TextToSpeechService {
     private var lastGeneratedAudioFilePath: String? = null
     private val client = OkHttpClient()
@@ -67,8 +69,8 @@ class ElevenLabsTextToSpeechService(
         response: Response,
         filePath: String,
         onStart: (() -> Unit)?,
-        onFinish: (() -> Unit)?,
-        audioFilePathState: MutableState<String> 
+        onFinish: (() -> Unit)?, // Add this line
+        audioFilePathState: MutableState<String>
     ) {
         Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called")
         if (response.isSuccessful) {
@@ -84,6 +86,7 @@ class ElevenLabsTextToSpeechService(
             // Handle the unsuccessful response
             // ...
         }
+        mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished)
     }
     //    private fun setupMediaPlayer(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) {
 //        Log.d("ElevenLabsTextToSpeechService", "setupMediaPlayer called")
