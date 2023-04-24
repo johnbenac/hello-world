@@ -1,6 +1,5 @@
 package com.example.hello_world
 
-import android.media.MediaPlayer
 import okhttp3.*
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
@@ -86,28 +85,9 @@ class ElevenLabsTextToSpeechService(
             // Handle the unsuccessful response
             // ...
         }
-        mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished)
+        mediaPlaybackManager.playAudio(filePath, context, onFinish = onFinish) // Pass onFinish here
     }
-    //    private fun setupMediaPlayer(filePath: String, onStart: (() -> Unit)?, onFinish: (() -> Unit)?) {
-//        Log.d("ElevenLabsTextToSpeechService", "setupMediaPlayer called")
-//        val mediaPlayer = MediaPlayer().apply {
-//            setDataSource(filePath)
-//            setOnPreparedListener {
-//                onStart?.invoke()
-//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onPrepared")
-//                start()
-//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer started")
-//            }
-//            setOnCompletionListener {
-//                onFinish?.invoke()
-//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer onCompletion")
-//                release()
-//                Log.d("ElevenLabsTextToSpeechService", "mediaPlayer released")
-//            }
-//            prepareAsync()
-//            Log.d("ElevenLabsTextToSpeechService", "mediaPlayer preparedAsync")
-//        }
-//    }
+
     override fun stop() {
         // Implement stop functionality if needed
     }

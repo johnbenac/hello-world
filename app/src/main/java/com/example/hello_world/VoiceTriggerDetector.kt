@@ -37,6 +37,7 @@ class VoiceTriggerDetector(
 
     fun stopListening() {
         speechRecognizer.stopListening()
+        Log.d("VoiceTriggerDetector", "log: within the stoplistening function, speechRecognizer.stopListening() was just called")
     }
 
     override fun onReadyForSpeech(params: Bundle) {
@@ -76,7 +77,7 @@ class VoiceTriggerDetector(
 
     override fun onPartialResults(partialResults: Bundle) {
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        Log.d("VoiceTriggerDetector", "Partial Results: $matches")
+//        Log.d("VoiceTriggerDetector", "Partial Results: $matches")
         Toast.makeText(context, "Partial Results: $matches", Toast.LENGTH_SHORT).show()
     
         // Set the latest partial result

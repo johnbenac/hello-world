@@ -30,7 +30,7 @@ class AndroidTextToSpeechService(
 
     override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
         val utteranceId = UUID.randomUUID().toString()
-        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId")
+//        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId")
         val uniqueFileName = "google_tts_${UUID.randomUUID()}.mp3"
         val filePath = File(context.getExternalFilesDir(null), uniqueFileName).absolutePath
 
@@ -38,10 +38,10 @@ class AndroidTextToSpeechService(
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) {
                 onStart?.invoke()
-                Log.d("AndroidTextToSpeechService", "log: onStart called")
+                Log.d("AndroidTextToSpeechService", "log: the onStart method with the speak function has been called")
             }
             override fun onDone(utteranceId: String) {
-                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId")
+//                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId")
                 Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath")
                 audioFilePathState.value = filePath
                 lastGeneratedAudioFilePath = filePath

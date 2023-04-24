@@ -25,7 +25,7 @@ fun MessageCard( // Composable for the message card
     mediaPlaybackManager: MediaPlaybackManager,
     context: Context
 ) {
-    Log.d("MessageCard", "Message: $message") 
+//    Log.d("MessageCard", "Message: $message")
     Card( // Create a card for the message
         modifier = Modifier // Set the modifier for the card
             .clickable { onCardClicked() } //the card is clickable!

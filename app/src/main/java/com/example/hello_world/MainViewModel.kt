@@ -41,23 +41,23 @@ class MainViewModel(
         _conversationMessages.add(ConversationMessage("User", userMessage, audioFilePathState))
         val responseText = openAiApiService.sendMessage(_conversationMessages)
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
-        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
+//        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
         onAssistantResponse(responseText, audioFilePathState)
         textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = {
             mainHandler.post {
                 _isAppSpeaking.value = false
 //                if (_isListening.value) {
                 startListening()
-                Log.d("MainViewModel", "log: startListening called 2")
+                Log.d("MainViewModel", "log: startListening called associated with onFinish")
 //                }
             }
         }, onStart = {
             mainHandler.post {
                 stopListening()
-                Log.d("MainViewModel", "log: stopListening called 1")
+                Log.d("MainViewModel", "log: stopListening called associated with onStart")
             }
         }, audioFilePathState = _conversationMessages.last().audioFilePath)
-        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
+//        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
         _isAppSpeaking.value = true
     }
     private fun startPeriodicListeningCheck() {
@@ -74,8 +74,8 @@ class MainViewModel(
         Log.d("MainViewModel", "log: onAssistantResponse called")
         // Add assistant message to the conversation state
         _conversationMessages.add(ConversationMessage("Assistant", response, assistantAudioFilePathState))
-        Log.d("MainViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
-        Log.d("MainViewModel", "log: _conversationMessages added")
+//        Log.d("MainViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
+//        Log.d("MainViewModel", "log: _conversationMessages added")
     }
     fun stopListening() {
         voiceTriggerDetector.stopListening()
