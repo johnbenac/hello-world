@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 import android.widget.MediaController
+import android.widget.Toast
 
 class AndroidMediaPlaybackManager : MediaPlaybackManager {
     var mediaPlayer: MediaPlayer? = null
@@ -14,6 +15,7 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
     override fun pause() {
         mediaPlayer?.apply {
             playbackPosition = currentPosition // Save the playback position
+            Log.d("AndroidMediaPlaybackManager", "Pausing audio at position: $playbackPosition")
             pause()
         }
     }
@@ -21,8 +23,14 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
         return mediaPlayer?.isPlaying ?: false
     }
     override fun playAudio(filePath: String, context: Context) {
+        if (filePath.isEmpty()) {
+            Toast.makeText(context, "Audio file not loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (mediaPlayer != null && currentFilePath == filePath) {
             mediaPlayer?.apply {
+                Log.d("AndroidMediaPlaybackManager", "Resuming audio at position: $playbackPosition")
+                Log.d("AndroidMediaPlaybackManager", "memory address: $this")
                 seekTo(playbackPosition) // Set the playback position
                 start()
             }

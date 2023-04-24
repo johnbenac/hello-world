@@ -41,7 +41,7 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
 
         val messages = mainViewModel.conversationMessages // Get the conversation messages
         Log.d("MainScreen", "Number of messages: ${messages.size}")
-        LaunchedEffect(scrollToBottomClicked.value) {
+        LaunchedEffect(Unit) {
             if (scrollToBottomClicked.value) {
                 Log.d("MainScreen", "LaunchedEffect triggered")
                 val targetIndex = messages.size - 1
