@@ -28,7 +28,7 @@ class AndroidTextToSpeechService(
         }
     }
 
-    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
+    override fun renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
         val utteranceId = UUID.randomUUID().toString()
 //        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId")
         val uniqueFileName = "google_tts_${UUID.randomUUID()}.mp3"

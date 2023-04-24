@@ -12,6 +12,18 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
     private var mediaController: MediaController? = null
     private var currentFilePath: String? = null
     private var playbackPosition: Int = 0
+
+    override fun seekForward() {
+        val currentPosition = mediaPlayer?.currentPosition ?: 0
+        val newPosition = currentPosition + 10000 // Skip forward by 10 seconds
+        mediaPlayer?.seekTo(newPosition)
+    }
+
+    override fun seekBackward() {
+        val currentPosition = mediaPlayer?.currentPosition ?: 0
+        val newPosition = currentPosition - 10000 // Skip backward by 10 seconds
+        mediaPlayer?.seekTo(newPosition)
+    }
     override fun pause() {
         mediaPlayer?.apply {
             playbackPosition = currentPosition // Save the playback position

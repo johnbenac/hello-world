@@ -33,7 +33,7 @@ class MainViewModel(
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
-        Log.d("MainViewModel", "log: startListening called 1")
+        Log.d("MainViewModel", "log: from within the startListening() function, `voiceTriggerDetector.startListening()` and `_isListening.value = true` were just called.")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
         val audioFilePathState = mutableStateOf("")
@@ -43,7 +43,7 @@ class MainViewModel(
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
 //        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
         onAssistantResponse(responseText, audioFilePathState)
-        textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = {
+        textToSpeechServiceState.value.renderSpeech(responseText.replace("\n", " "), onFinish = {
             mainHandler.post {
                 _isAppSpeaking.value = false
 //                if (_isListening.value) {
@@ -71,7 +71,7 @@ class MainViewModel(
     }
     private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) {
         val assistantAudioFilePathState = mutableStateOf("")
-        Log.d("MainViewModel", "log: onAssistantResponse called")
+//        Log.d("MainViewModel", "log: onAssistantResponse called")
         // Add assistant message to the conversation state
         _conversationMessages.add(ConversationMessage("Assistant", response, assistantAudioFilePathState))
 //        Log.d("MainViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
@@ -89,7 +89,7 @@ class MainViewModel(
 
         // Stop listening
         voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
-        Log.d("MainViewModel", "log: stopListening called 3")
+        Log.d("MainViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called")
 
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {

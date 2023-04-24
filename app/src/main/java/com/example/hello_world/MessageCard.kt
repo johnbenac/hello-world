@@ -50,8 +50,8 @@ fun MessageCard( // Composable for the message card
                         mediaPlaybackManager.playAudio(message.audioFilePath.value, context)
                     }
                 },
-                onSeekForward = { /* Implement seek forward functionality in MainViewModel and pass the callback here */ }, // When the seek forward button is pressed
-                onSeekBackward = { /* Implement seek backward functionality in MainViewModel and pass the callback here */ } // When the seek backward button is pressed
+                onSeekForward = { mediaPlaybackManager.seekForward() }, // Pass the seekForward callback
+                onSeekBackward = { mediaPlaybackManager.seekBackward() } // Pass the seekBackward callback
             )
         }
     }

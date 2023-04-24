@@ -21,7 +21,7 @@ class ElevenLabsTextToSpeechService(
 ) : TextToSpeechService {
     private var lastGeneratedAudioFilePath: String? = null
     private val client = OkHttpClient()
-    override fun speak(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
+    override fun renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
         val fileName = "elevenlabs_tts_${UUID.randomUUID()}.mp3"
         val filePath = File(context.getExternalFilesDir(null), fileName).absolutePath
         val requestBody = createTtsRequestBody(text)
@@ -79,13 +79,24 @@ class ElevenLabsTextToSpeechService(
                 }
                 Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath")
                 audioFilePathState.value = filePath
-//                setupMediaPlayer(filePath, onStart, onFinish)
+                mediaPlaybackManager.playAudio(filePath, context, onFinish = {
+                    onFinish?.invoke()
+                    onPlaybackFinished()
+//                    voiceTriggerDetector.stopListening()
+                    Log.d("ElevenLabsTextToSpeechService", "\nonFinish?.invoke()\n" +
+                            "            onPlaybackFinished()\nwas just called")
+                }) // Pass onFinish here
             }
         } else {
             // Handle the unsuccessful response
             // ...
         }
-        mediaPlaybackManager.playAudio(filePath, context, onFinish = onFinish) // Pass onFinish here
+        mediaPlaybackManager.playAudio(filePath, context, onFinish = {
+            onFinish?.invoke()
+            onPlaybackFinished()
+            Log.d("ElevenLabsTextToSpeechService", "\nonFinish?.invoke()\n" +
+                    "            onPlaybackFinished()\nwas just called")
+        }) // Pass onFinish here
     }
 
     override fun stop() {

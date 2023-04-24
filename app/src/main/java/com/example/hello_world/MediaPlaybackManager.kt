@@ -8,4 +8,6 @@ interface MediaPlaybackManager {
     fun isPlaying(): Boolean
     fun pause()
     // Add other media control methods as needed
+    fun seekForward()
+    fun seekBackward()
 }
