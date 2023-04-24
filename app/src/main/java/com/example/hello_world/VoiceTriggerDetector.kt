@@ -16,7 +16,7 @@ class VoiceTriggerDetector(
     private val triggerWord: String,
     private val onTriggerWordDetected: ((String) -> Unit),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val latestPartialResult: MutableState<String?> // Add this line
+    private val latestPartialResult: MutableState<String?> 
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private var keepListening: Boolean = true

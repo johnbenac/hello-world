@@ -12,19 +12,18 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
 
-class MainViewModel(
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+class MainViewModel( 
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-//    private val audioFilePathState = mutableStateOf<String>("") // Add this line
-    //    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
+
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     val isAppSpeaking: Boolean get() = _isAppSpeaking.value
-    //    val shouldListenAfterSpeaking = mutableStateOf(true)
+
     private val mainHandler = Handler(Looper.getMainLooper())
     val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
     private val _conversationMessages = mutableStateListOf<ConversationMessage>()
@@ -64,7 +63,7 @@ class MainViewModel(
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
             if (_isListening.value && _isAppSpeaking.value) {
-//                Log.d("MainViewModel", "log: Periodic check - Restarting listening")
+                Log.d("MainViewModel", "log: Periodic check - Restarting listening")
                 startListening()
             }
             startPeriodicListeningCheck()

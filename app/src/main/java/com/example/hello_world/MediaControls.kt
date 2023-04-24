@@ -10,21 +10,30 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 
 @Composable
-fun MediaControls( // Composable for the media controls
-    onPlay: () -> Unit, // Function to call when the play button is pressed
-    onPause: () -> Unit, // Function to call when the pause button is pressed
+fun MediaControls(
+    onPlayPause: () -> Unit, // Function to call when the play/pause button is pressed
     onSeekForward: () -> Unit, // Function to call when the seek forward button is pressed
     onSeekBackward: () -> Unit // Function to call when the seek backward button is pressed
 ) {
+    var isPlaying by remember { mutableStateOf(false) } // Add the state variable isPlaying
+
     Row {
-        IconButton(onClick = onPlay) { // Create a button for the play button
-            Icon(Icons.Filled.PlayArrow, contentDescription = "Play") // Show the play icon
-        }
-        IconButton(onClick = onPause) { // Create a button for the pause button
-            Icon(Icons.Filled.AccountBox, contentDescription = "Pause") // Show the pause icon
+        IconButton(onClick = {
+            onPlayPause() // Call the onPlayPause function
+            isPlaying = !isPlaying // Toggle the isPlaying state
+        }) {
+            if (isPlaying) {
+                Icon(Icons.Filled.AccountBox, contentDescription = "Pause") // Show the pause icon
+            } else {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Play") // Show the play icon
+            }
         }
         IconButton(onClick = onSeekForward) { // Create a button for the seek forward button
             Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") // Show the seek forward icon

@@ -9,10 +9,16 @@ import android.widget.MediaController
 class AndroidMediaPlaybackManager : MediaPlaybackManager {
     private var mediaPlayer: MediaPlayer? = null
     private var mediaController: MediaController? = null
+    override fun pause() {
+        mediaPlayer?.pause()
+    }
+    override fun isPlaying(): Boolean {
+        return mediaPlayer?.isPlaying ?: false
+    }
     override fun playAudio(filePath: String, context: Context) {
         mediaPlayer?.release()
         mediaPlayer = MediaPlayer().apply {
-            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") // Add this line
+            Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath") 
             setDataSource(filePath)
             prepare()
             start()
@@ -20,8 +26,20 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
         mediaController?.hide()
         mediaController = MediaController(context)
         mediaController?.setMediaPlayer(object : MediaController.MediaPlayerControl {
-            override fun start() = mediaPlayer?.start() ?: Unit
-            override fun pause() = mediaPlayer?.pause() ?: Unit
+            private var isPaused = false
+            override fun start() {
+                if (isPaused) {
+                    mediaPlayer?.start()
+                    isPaused = false
+                }
+            }
+
+            override fun pause() {
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.pause()
+                    isPaused = true
+                }
+            }
             // Implement other required methods
             override fun getDuration(): Int = mediaPlayer?.duration ?: 0
             override fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0

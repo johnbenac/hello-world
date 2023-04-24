@@ -68,7 +68,7 @@ class ElevenLabsTextToSpeechService(
         filePath: String,
         onStart: (() -> Unit)?,
         onFinish: (() -> Unit)?,
-        audioFilePathState: MutableState<String> // Add this parameter
+        audioFilePathState: MutableState<String> 
     ) {
         Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called")
         if (response.isSuccessful) {

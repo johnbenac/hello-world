@@ -86,7 +86,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
                     continuation.resumeWithException(IOException("Unexpected code $response"))
                 } else {
                     val responseBody = response.body?.string()
-                    Log.d("OpenAiApiService", "Received JSON: $responseBody") // Add this line to log the received JSON
+                    Log.d("OpenAiApiService", "Received JSON: $responseBody") 
                     val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
                     val apiResponse = jsonAdapter.fromJson(responseBody)
             
