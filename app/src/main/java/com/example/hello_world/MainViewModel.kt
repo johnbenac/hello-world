@@ -9,11 +9,10 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
-class AssistantViewModel(
+class MainViewModel(
     private val textToSpeechServiceState: MutableState<TextToSpeechService>,
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
@@ -22,9 +21,9 @@ class AssistantViewModel(
 //    private val audioFilePathState = mutableStateOf<String>("") // Add this line
     //    private val openAiApiService = OpenAiApiService("your_api_key_here", settingsViewModel)
     val latestPartialResult = mutableStateOf<String?>(null)
-    val _isAssistantSpeaking = mutableStateOf(false)
+    val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
-    val isAssistantSpeaking: Boolean get() = _isAssistantSpeaking.value
+    val isAppSpeaking: Boolean get() = _isAppSpeaking.value
     //    val shouldListenAfterSpeaking = mutableStateOf(true)
     private val mainHandler = Handler(Looper.getMainLooper())
     val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -35,37 +34,37 @@ class AssistantViewModel(
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
-//        Log.d("AssistantViewModel", "log: startListening called 1")
+        Log.d("MainViewModel", "log: startListening called 1")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
         val audioFilePathState = mutableStateOf("")
         // Add user message to the conversation state
         _conversationMessages.add(ConversationMessage("User", userMessage, audioFilePathState))
         val responseText = openAiApiService.sendMessage(_conversationMessages)
-        Log.d("AssistantViewModel", "Received response from OpenAI API: $responseText")
-        Log.d("AssistantViewModel", "User message added with audioFilePathState: $audioFilePathState")
+        Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
+        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
         onAssistantResponse(responseText, audioFilePathState)
         textToSpeechServiceState.value.speak(responseText.replace("\n", " "), onFinish = {
             mainHandler.post {
-                _isAssistantSpeaking.value = false
+                _isAppSpeaking.value = false
 //                if (_isListening.value) {
                 startListening()
-                Log.d("AssistantViewModel", "log: startListening called 2")
+                Log.d("MainViewModel", "log: startListening called 2")
 //                }
             }
         }, onStart = {
             mainHandler.post {
                 stopListening()
-                Log.d("AssistantViewModel", "log: stopListening called 1")
+                Log.d("MainViewModel", "log: stopListening called 1")
             }
         }, audioFilePathState = _conversationMessages.last().audioFilePath)
-        Log.d("AssistantViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
-        _isAssistantSpeaking.value = true
+        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
+        _isAppSpeaking.value = true
     }
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
-            if (_isListening.value && _isAssistantSpeaking.value) {
-//                Log.d("AssistantViewModel", "log: Periodic check - Restarting listening")
+            if (_isListening.value && _isAppSpeaking.value) {
+//                Log.d("MainViewModel", "log: Periodic check - Restarting listening")
                 startListening()
             }
             startPeriodicListeningCheck()
@@ -73,25 +72,25 @@ class AssistantViewModel(
     }
     private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) {
         val assistantAudioFilePathState = mutableStateOf("")
-        Log.d("AssistantViewModel", "log: onAssistantResponse called")
+        Log.d("MainViewModel", "log: onAssistantResponse called")
         // Add assistant message to the conversation state
         _conversationMessages.add(ConversationMessage("Assistant", response, assistantAudioFilePathState))
-        Log.d("AssistantViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
-        Log.d("AssistantViewModel", "log: _conversationMessages added")
+        Log.d("MainViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
+        Log.d("MainViewModel", "log: _conversationMessages added")
     }
     fun stopListening() {
         voiceTriggerDetector.stopListening()
-        Log.d("AssistantViewModel", "log: stopListening called 2")
+        Log.d("MainViewModel", "log: stopListening called 2")
         _isListening.value = false
     }
 
     fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
         // Add user message to the conversation state
-        Log.d("AssistantViewModel", "log: onTriggerWordDetected called")
+        Log.d("MainViewModel", "log: onTriggerWordDetected called")
 
         // Stop listening
         voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
-        Log.d("AssistantViewModel", "log: stopListening called 3")
+        Log.d("MainViewModel", "log: stopListening called 3")
 
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
