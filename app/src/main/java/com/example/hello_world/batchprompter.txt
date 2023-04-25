@@ -50,6 +50,8 @@ for %%f in (%files%) do (
 
                      ```AndroidMediaPlaybackManager.kt
 class AndroidMediaPlaybackManager()
+fun seekForward()
+fun seekBackward()
 fun pause()
 fun isPlaying()
 fun playAudio()
@@ -67,9 +69,9 @@ fun canSeekForward()
 ```
 
 ```AndroidTextToSpeechService.kt
-class AndroidTextToSpeechService(private val context: Context)
+class AndroidTextToSpeechService()
 fun onInit()
-fun speak()
+fun renderSpeech()
 fun onStart()
 fun onDone()
 fun onError()
@@ -90,20 +92,15 @@ class ConversationMessage(
 fun EditSettingsScreen()
 ```
 
-```ElevanLabsTextToSpeechSerivce.kt
-class ElevenLabsTextToSpeechService(
-    private val apiKey: String,
-    private val voiceId: String,
-    private val context: Context
-)
-fun speak()
+```ElevenLabsTextToSpeechSerivce.kt
+class ElevenLabsTextToSpeechService()
+fun renderSpeech()
 fun onFailure()
 fun onResponse()
 fun getAudioFilePath()
 fun createTtsRequestBody()
 fun buildTtsRequest()
 fun handleTtsResponse()
-fun setupMediaPlayer()
 fun stop()
 fun shutdown()
 ```
@@ -151,6 +148,8 @@ interface MediaPlaybackManager()
 fun playAudio()
 fun isPlaying()
 fun pause()
+fun seekForward()
+fun seekBackward()
 ```
 
 ```MessageCard.kt
@@ -215,7 +214,7 @@ fun applyProfile()
 
 ```TextToSpeechService.kt
 interface TextToSpeechService()
-fun speak()
+fun renderSpeech()
 fun stop()
 fun getAudioFilePath()
 fun shutdown()

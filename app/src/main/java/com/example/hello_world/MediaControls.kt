@@ -35,11 +35,12 @@ fun MediaControls(
                 Icon(Icons.Filled.PlayArrow, contentDescription = "Play") // Show the play icon
             }
         }
-        IconButton(onClick = onSeekForward) { // Create a button for the seek forward button
-            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") // Show the seek forward icon
-        }
         IconButton(onClick = onSeekBackward) { // Create a button for the seek backward button
             Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Seek Backward") // Show the seek backward icon
         }
+        IconButton(onClick = onSeekForward) { // Create a button for the seek forward button
+            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") // Show the seek forward icon
+        }
+
     }
 }
