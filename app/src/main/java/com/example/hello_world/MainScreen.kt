@@ -27,11 +27,11 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
     mainViewModel: MainViewModel, // The main view model
     settingsViewModel: SettingsViewModel, // The settings view model
     onSettingsClicked: () -> Unit, // Function to call when the settings button is pressed
-    textToSpeechServiceState: MutableState<TextToSpeechService>,
-    mediaPlaybackManager: MediaPlaybackManager
+    textToSpeechServiceState: MutableState<TextToSpeechService>, // The text to speech service
+    mediaPlaybackManager: MediaPlaybackManager // The media playback manager
 ) {
     val context = LocalContext.current // Get the current context
-    val scrollToBottomClicked = remember { mutableStateOf(false) }
+    val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
     BoxWithConstraints( // Create a box with constraints to get the maximum height of the screen
         modifier = Modifier // Set the modifier for the box
             .fillMaxSize() // Make the box fill the entire screen
@@ -42,18 +42,18 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
 
         val messages = mainViewModel.conversationMessages // Get the conversation messages
         Log.d("MainScreen", "Number of messages: ${messages.size}")
-        LaunchedEffect(Unit) {
-            if (scrollToBottomClicked.value) {
+        LaunchedEffect(Unit) { // Create a launched effect
+            if (scrollToBottomClicked.value) { // If the scroll to bottom button was clicked
                 Log.d("MainScreen", "LaunchedEffect triggered")
-                val targetIndex = messages.size - 1
+                val targetIndex = messages.size - 1 // Get the index of the last message
                 Log.d("MainScreen", "Target index for scrolling: $targetIndex")
-                try {
-                    lazyListState.animateScrollToItem(targetIndex)
+                try { // Try to scroll to the last message
+                    lazyListState.animateScrollToItem(targetIndex) // Scroll to the last message
                     Log.d("MainScreen", "animateScrollToItem to item number $targetIndex")
-                } catch (e: Exception) {
+                } catch (e: Exception) { 
                     Log.e("MainScreen", "Error while animating scroll to item", e)
                 }
-                scrollToBottomClicked.value = false
+                scrollToBottomClicked.value = false // Reset the scroll to bottom button clicked state
             }
         }
         val maxHeight = constraints.maxHeight // Get the maximum height of the screen
@@ -64,15 +64,15 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
                     .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) // Set the height of the lazy column to the maximum height of the screen minus the height of the buttons
             ) {
                 items(messages) { message -> // For each message in the conversation messages
-                    MessageCard(
-                        message = message,
-                        onPlayAudio = { audioFilePath ->
-                            mainViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+                    MessageCard( // Create a message card for the message
+                        message = message, // Set the message for the message card
+                        onPlayAudio = { audioFilePath -> // Set the on play audio function for the message card
+                            mainViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) // Play the audio file
                         },
-                        onCardClicked = {
+                        onCardClicked = { // Set the on card clicked function for the message card
                             // Implement the functionality that should happen when the card is clicked
                             Log.d("MainScreen", "Card with index ${messages.indexOf(message)} clicked")
-                        },mainViewModel.mediaPlaybackManager,context
+                        },mainViewModel.mediaPlaybackManager,context // Set the media playback manager and context for the message card
                     )
                 }
             }

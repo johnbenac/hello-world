@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var openAiApiService: OpenAiApiService // Create an OpenAI API service
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1 // Create a request code for requesting audio permission
     private val settingsViewModel = SettingsViewModel() // Create a settings view model
-    private val mediaPlaybackManager = AndroidMediaPlaybackManager()
+    private val mediaPlaybackManager = AndroidMediaPlaybackManager() // Create a media playback manager
     private lateinit var mainViewModel: MainViewModel // Create an main view model
 
 
@@ -88,9 +88,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-
-
-
-
-
