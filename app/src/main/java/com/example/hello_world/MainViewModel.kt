@@ -36,6 +36,7 @@ class MainViewModel(
         Log.d("MainViewModel", "log: from within the startListening() function, `voiceTriggerDetector.startListening()` and `_isListening.value = true` were just called.")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+        stopListening()
         val audioFilePathState = mutableStateOf("")
         // Add user message to the conversation state
         _conversationMessages.add(ConversationMessage("User", userMessage, audioFilePathState))
