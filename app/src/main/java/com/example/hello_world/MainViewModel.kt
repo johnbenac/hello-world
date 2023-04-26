@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 import com.example.hello_world.ConversationModel
 
 
-class MainViewModel( 
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
+class MainViewModel(
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
@@ -28,7 +28,9 @@ class MainViewModel(
     private val mainHandler = Handler(Looper.getMainLooper())
     val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
-    val conversationMessages: List<ConversationMessage> get() = conversationModel.conversation.messages
+    val conversationMessages = mutableStateListOf<ConversationMessage>().apply {
+        addAll(conversationModel.conversation.messages)
+    }
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
     fun startListening() {
@@ -37,14 +39,28 @@ class MainViewModel(
         Log.d("MainViewModel", "log: from within the startListening() function, `voiceTriggerDetector.startListening()` and `_isListening.value = true` were just called.")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+
+
+
         stopListening()
         val audioFilePathState = mutableStateOf("")
         // Add user message to the conversation state
-        conversationModel.addMessage(ConversationMessage("User", userMessage, audioFilePathState))
+
+
+        val userMessageObj = ConversationMessage("User", userMessage, audioFilePathState)
+        conversationModel.addMessage(userMessageObj)
+        conversationMessages.add(userMessageObj)
+
+//        conversationModel.addMessage(ConversationMessage("User", userMessage, audioFilePathState))
         val responseText = openAiApiService.sendMessage(conversationModel.conversation.messages)
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
 //        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
-        conversationModel.addMessage(ConversationMessage("Assistant", responseText, audioFilePathState))
+//        conversationModel.addMessage(ConversationMessage("Assistant", responseText, audioFilePathState))
+
+        val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
+        conversationModel.addMessage(assistantMessageObj)
+        conversationMessages.add(assistantMessageObj)
+
         textToSpeechServiceState.value.renderSpeech(responseText.replace("\n", " "), onFinish = {
             if (conversationModel.conversation.messages.isNotEmpty()) {
             mainHandler.post {
@@ -70,6 +86,7 @@ class MainViewModel(
 
     fun deleteMessage(index: Int) {
         conversationModel.deleteMessage(index)
+        conversationMessages.removeAt(index)
     }
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
