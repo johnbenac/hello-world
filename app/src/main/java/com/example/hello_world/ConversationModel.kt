@@ -2,8 +2,9 @@ package com.example.hello_world
 
 import Conversation
 import ConversationMessage
+import java.util.UUID
 
-class ConversationModel {
+class ConversationModel(private val conversationRepository: IConversationRepository) {
     val conversation: Conversation = Conversation(
         profile = Profile(
             name = "Jake",
@@ -26,5 +27,18 @@ class ConversationModel {
         conversation.messages.removeAt(index)
     }
 
-    // TODO: Implement methods for saving and retrieving conversations
+    fun saveConversation() {
+        conversationRepository.saveConversation(conversation)
+    }
+
+    fun loadConversation(conversationId: UUID) {
+        val loadedConversation = conversationRepository.loadConversation(conversationId)
+        if (loadedConversation != null) {
+            conversation = loadedConversation
+        }
+    }
+
+    fun deleteConversation(conversationId: UUID) {
+        conversationRepository.deleteConversation(conversationId)
+    }
 }

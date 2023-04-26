@@ -10,7 +10,6 @@ import android.os.Looper
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import com.example.hello_world.ConversationModel
 
 
 class MainViewModel(
@@ -19,7 +18,8 @@ class MainViewModel(
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-    val conversationModel = ConversationModel()
+    private val conversationRepository = LocalRoomConversationRepository()
+    val conversationModel = ConversationModel(conversationRepository)
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
