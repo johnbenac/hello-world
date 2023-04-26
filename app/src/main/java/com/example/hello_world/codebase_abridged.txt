@@ -49,10 +49,13 @@ class ConversationMessage(
 ```
 
 ```ConversationModel.kt
-class ConversationModel()
+class ConversationModel(private val conversationRepository: IConversationRepository)
 fun addMessage()
 fun updateMessage()
 fun deleteMessage()
+fun saveConversation()
+fun loadConversation()
+fun deleteConversation()
 ```
 
 ```EditSettingsScreen.kt
@@ -72,6 +75,57 @@ fun stop()
 fun shutdown()
 ```
 
+```IConversationRepository.kt
+interface IConversationRepository()
+fun saveConversation()
+fun loadConversation()
+fun deleteConversation()
+fun loadAllConversations()
+```
+
+```LocalConversationDao.kt
+interface LocalConversationDao()
+fun insertConversation()
+fun insertMessage()
+fun getConversation()
+fun getMessages()
+fun saveConversation()
+fun getAllConversations()
+fun deleteConversation()
+fun deleteMessages()
+```
+
+```LocalConversationDatabase.kt
+class LocalConversationDatabase()
+fun conversationDao()
+fun getInstance()
+```
+
+```LocalConversationEntity.kt
+class LocalConversationEntity(
+    @PrimaryKey
+    val id: String,
+    val profileJson: String,
+    val createdAt: Long,
+    val title: String?,
+    val dateStarted: Long,
+    val dateLastSaved: Long,
+    val messageCount: Int
+)
+```
+
+```LocalConversationMessageEntity.kt
+class LocalConversationMessageEntity()
+```
+
+```LocalRoomConversationRepository.kt
+class LocalRoomConversationRepository(context: Context)
+fun saveConversation()
+fun loadConversation()
+fun deleteConversation()
+fun loadAllConversations()
+```
+
 ```MainActivity.kt
 class MainActivity()
 class onCreate()
@@ -85,6 +139,7 @@ fun onResume()
 fun onPause()
 fun onDestroy()
 fun onRequestPermissionsResult()
+fun shareConversationText()
 ```
 
 ```MainScreen.kt
@@ -93,19 +148,24 @@ fun MainScreen()
 
 ```MainViewModel.kt
 class MainViewModel(
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
+
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
-    private val openAiApiService: OpenAiApiService
+    private val openAiApiService: OpenAiApiService,
+    private val conversationRepository: IConversationRepository
 )
 fun startListening()
 fun sendUserMessageToOpenAi()
 fun updateMessage()
 fun deleteMessage()
 fun startPeriodicListeningCheck()
-fun onAssistantResponse()
 fun stopListening()
 fun onTriggerWordDetected()
+fun loadConversation()
+fun saveConversation()
+fun onSaveDialogConfirmed()
+fun onSaveDialogDismissed()
 ```
 
 ```MediaControls.kt
@@ -159,6 +219,21 @@ class Profile(
     val presencePenalty: Double,
     val model: String
 )
+```
+
+```SavedConversationsScreen.kt
+fun SavedConversationsScreen()
+fun CardElevation()
+fun ConversationCard()
+fun formatDate()
+```
+
+```SavedConversationsViewModel.kt
+class SavedConversationsViewModel(
+    private val conversationRepository: IConversationRepository
+)
+fun loadSavedConversations()
+fun deleteConversation()
 ```
 
 ```SettingsScreen.kt
