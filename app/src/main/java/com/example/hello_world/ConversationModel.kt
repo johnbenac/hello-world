@@ -3,6 +3,9 @@ package com.example.hello_world
 import Conversation
 import ConversationMessage
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ConversationModel(private val conversationRepository: IConversationRepository) {
     val conversation: Conversation = Conversation(
@@ -28,17 +31,24 @@ class ConversationModel(private val conversationRepository: IConversationReposit
     }
 
     fun saveConversation() {
-        conversationRepository.saveConversation(conversation)
-    }
-
-    fun loadConversation(conversationId: UUID) {
-        val loadedConversation = conversationRepository.loadConversation(conversationId)
-        if (loadedConversation != null) {
-            conversation = loadedConversation
+        // TODO: Save the entire conversation to the repository
+        CoroutineScope(Dispatchers.IO).launch {
+            conversationRepository.saveConversation(conversation)
         }
     }
 
-    fun deleteConversation(conversationId: UUID) {
+    fun loadConversation(conversationId: UUID) {
+        // TODO: Load the conversation with the given ID from the repository
+        CoroutineScope(Dispatchers.IO).launch {
+            val loadedConversation = conversationRepository.loadConversation(conversationId)
+            if (loadedConversation != null) {
+                // TODO: Update the conversation state with the loaded conversation
+            }
+        }
+    }
+
+
+    suspend fun deleteConversation(conversationId: UUID) {
         conversationRepository.deleteConversation(conversationId)
     }
 }

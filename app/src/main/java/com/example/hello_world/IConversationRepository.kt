@@ -4,7 +4,7 @@ import Conversation
 import java.util.UUID
 
 interface IConversationRepository {
-    fun saveConversation(conversation: Conversation)
-    fun loadConversation(conversationId: UUID): Conversation?
-    fun deleteConversation(conversationId: UUID)
+    suspend fun saveConversation(conversation: Conversation)
+    suspend fun loadConversation(conversationId: UUID): Conversation?
+    suspend fun deleteConversation(conversationId: UUID)
 }

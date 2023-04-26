@@ -18,7 +18,7 @@ class MainViewModel(
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 ) : ViewModel() {
-    private val conversationRepository = LocalRoomConversationRepository()
+    private val conversationRepository = LocalRoomConversationRepository(context)
     val conversationModel = ConversationModel(conversationRepository)
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
@@ -86,8 +86,10 @@ class MainViewModel(
     }
 
     fun deleteMessage(index: Int) {
-        conversationModel.deleteMessage(index)
-        conversationMessages.removeAt(index)
+        viewModelScope.launch {
+            conversationModel.deleteConversation(conversationModel.conversation.id)
+            conversationMessages.removeAt(index)
+        }
     }
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
