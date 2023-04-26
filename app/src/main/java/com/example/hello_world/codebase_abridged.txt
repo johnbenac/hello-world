@@ -36,12 +36,23 @@ fun stop()
 fun shutdown()
 ```
 
+```Conversation.kt
+class Conversation()
+```
+
 ```ConversationMessage.kt
 class ConversationMessage(
     val sender: String,
     val message: String,
     val audioFilePath: MutableState<String>
 )
+```
+
+```ConversationModel.kt
+class ConversationModel()
+fun addMessage()
+fun updateMessage()
+fun deleteMessage()
 ```
 
 ```EditSettingsScreen.kt

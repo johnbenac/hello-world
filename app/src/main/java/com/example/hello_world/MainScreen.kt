@@ -64,15 +64,27 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
                     .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) // Set the height of the lazy column to the maximum height of the screen minus the height of the buttons
             ) {
                 items(messages) { message -> // For each message in the conversation messages
-                    MessageCard( // Create a message card for the message
-                        message = message, // Set the message for the message card
-                        onPlayAudio = { audioFilePath -> // Set the on play audio function for the message card
-                            mainViewModel.mediaPlaybackManager.playAudio(audioFilePath, context) // Play the audio file
+                    MessageCard(
+                        message = message,
+                        onPlayAudio = { audioFilePath ->
+                            mainViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
                         },
-                        onCardClicked = { // Set the on card clicked function for the message card
-                            // Implement the functionality that should happen when the card is clicked
+                        onCardClicked = {
                             Log.d("MainScreen", "Card with index ${messages.indexOf(message)} clicked")
-                        },mainViewModel.mediaPlaybackManager,context // Set the media playback manager and context for the message card
+                        },
+                        mediaPlaybackManager = mediaPlaybackManager,
+                        context = context,
+                        onDeleteClicked = {
+                            // Log the delete action and message index
+                            Log.d("MainScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
+                            // Call the deleteMessage method from MainViewModel
+                            mainViewModel.deleteMessage(messages.indexOf(message))
+                        },
+                        onEditClicked = {
+                            // Log the edit action and message index
+                            Log.d("MainScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
+                            // TODO: Implement the edit functionality (e.g., open a dialog or screen for editing the message)
+                        }
                     )
                 }
             }

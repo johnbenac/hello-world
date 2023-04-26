@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         textToSpeechService?.shutdown() // Shutdown the text to speech service
     }
 
-    private val conversationMessages = mutableStateListOf<ConversationMessage>() // Create a mutable list of conversation messages
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) { // When the user responds to the permission request
         super.onRequestPermissionsResult(requestCode, permissions, grantResults) // Call the super class onRequestPermissionsResult to handle the permission request
         if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) { // Check if the request code is the same as the one we requested
