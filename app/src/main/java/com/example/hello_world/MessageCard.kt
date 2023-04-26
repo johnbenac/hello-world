@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
@@ -64,7 +65,9 @@ fun MessageCard( // Composable for the message card
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                Text(text = message.message)
+                SelectionContainer {
+                    Text(text = message.message)
+                }
             }
             if (isEditing.value) { // add this line
                 Row { // add this line
