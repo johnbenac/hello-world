@@ -11,13 +11,14 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
-
+@ExperimentalMaterial3Api
 class MainActivity : AppCompatActivity() {
     private var textToSpeechService: TextToSpeechService? = null // Create a text to speech service
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector // Create a voice trigger detector

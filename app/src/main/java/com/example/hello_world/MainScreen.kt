@@ -17,12 +17,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 
+
 @Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
 fun MainScreen( // Composable for the main screen. This is the main screen of the app
     mainViewModel: MainViewModel, // The main view model
     settingsViewModel: SettingsViewModel, // The settings view model
@@ -80,10 +85,11 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
                             // Call the deleteMessage method from MainViewModel
                             mainViewModel.deleteMessage(messages.indexOf(message))
                         },
-                        onEditClicked = {
+                        onEditClicked = { message, editedMessage ->
+                            val index = messages.indexOf(message)
+                            mainViewModel.updateMessage(index, message.copy(message = editedMessage))
                             // Log the edit action and message index
                             Log.d("MainScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
-                            // TODO: Implement the edit functionality (e.g., open a dialog or screen for editing the message)
                         }
                     )
                 }

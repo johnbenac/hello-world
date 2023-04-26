@@ -82,6 +82,7 @@ class MainViewModel(
 
     fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
         conversationModel.updateMessage(index, updatedMessage)
+        conversationMessages[index] = updatedMessage
     }
 
     fun deleteMessage(index: Int) {

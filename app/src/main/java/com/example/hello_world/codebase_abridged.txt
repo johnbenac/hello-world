@@ -92,14 +92,16 @@ fun MainScreen()
 ```
 
 ```MainViewModel.kt
-class MainViewModel( 
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>, 
+class MainViewModel(
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService
 )
 fun startListening()
 fun sendUserMessageToOpenAi()
+fun updateMessage()
+fun deleteMessage()
 fun startPeriodicListeningCheck()
 fun onAssistantResponse()
 fun stopListening()
