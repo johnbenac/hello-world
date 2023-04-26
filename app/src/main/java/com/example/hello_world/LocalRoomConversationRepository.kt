@@ -24,7 +24,10 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
                 id = conversation.id.toString(),
                 profileJson = profileJson,
                 createdAt = conversation.createdAt,
-                title = conversation.title
+                title = conversation.title,
+                dateStarted = conversation.dateStarted,
+                dateLastSaved = conversation.dateLastSaved,
+                messageCount = conversation.messages.size
             )
             val messageEntities = conversation.messages.map { message ->
                 LocalConversationMessageEntity(
@@ -43,10 +46,10 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
         return withContext(Dispatchers.IO) {
             val conversationEntity = conversationDao.getConversation(conversationId.toString())
             val messageEntities = conversationDao.getMessages(conversationId.toString())
-
-            if (conversationEntity != null) {
+            val profile = moshi.adapter(Profile::class.java).fromJson(conversationEntity?.profileJson)
+            if (conversationEntity != null && profile != null) {
                 val profile = moshi.adapter(Profile::class.java).fromJson(conversationEntity.profileJson)
-                profile?.let { // Add this line
+                profile?.let {
                     val messages = messageEntities.map { entity ->
                         ConversationMessage(
                             sender = entity.sender,
@@ -58,11 +61,14 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
                     Conversation(
                         id = UUID.fromString(conversationEntity.id),
                         messages = messages,
-                        profile = it, // Modify this line
+                        profile = it,
                         createdAt = conversationEntity.createdAt,
-                        title = conversationEntity.title
+                        title = conversationEntity.title.orEmpty(),
+                        dateStarted = conversationEntity.dateStarted,
+                        dateLastSaved = conversationEntity.dateLastSaved,
+                        messageCount = conversationEntity.messageCount
                     )
-                } // Add this line
+                }
             } else {
                 null
             }
@@ -74,6 +80,27 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
         withContext(Dispatchers.IO) {
             conversationDao.deleteMessages(conversationId.toString())
             conversationDao.deleteConversation(conversationId.toString())
+        }
+    }
+
+    override suspend fun loadAllConversations(): List<Conversation> {
+        return withContext(Dispatchers.IO) {
+            val conversationEntities = conversationDao.getAllConversations()
+            conversationEntities.map { entity ->
+                val profile = moshi.adapter(Profile::class.java).fromJson(entity.profileJson)
+                profile?.let {
+                    Conversation(
+                        id = UUID.fromString(entity.id),
+                        messages = mutableListOf(), // We don't need messages for the saved conversations list
+                        profile = it,
+                        createdAt = entity.createdAt,
+                        title = entity.title.orEmpty(),
+                        dateStarted = entity.dateStarted,
+                        dateLastSaved = entity.dateLastSaved,
+                        messageCount = entity.messageCount
+                    )
+                }
+            }.filterNotNull()
         }
     }
 }

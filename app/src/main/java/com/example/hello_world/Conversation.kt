@@ -6,5 +6,8 @@ data class Conversation(
     val messages: MutableList<ConversationMessage> = mutableListOf(),
     val profile: Profile,
     val createdAt: Long = System.currentTimeMillis(),
-    val title: String? = null
+    val title: String = "Untitled Conversation",
+    val dateStarted: Long = System.currentTimeMillis(),
+    val dateLastSaved: Long = System.currentTimeMillis(),
+    val messageCount: Int = 0
 )

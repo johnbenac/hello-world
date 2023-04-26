@@ -26,6 +26,9 @@ interface LocalConversationDao {
         messages.forEach { insertMessage(it) }
     }
 
+    @Query("SELECT * FROM conversations")
+    suspend fun getAllConversations(): List<LocalConversationEntity>
+
     @Query("DELETE FROM conversations WHERE id = :conversationId")
     suspend fun deleteConversation(conversationId: String)
 

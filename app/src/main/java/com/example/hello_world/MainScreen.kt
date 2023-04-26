@@ -35,7 +35,7 @@ fun MainScreen(
     onSettingsClicked: () -> Unit,
     textToSpeechServiceState: MutableState<TextToSpeechService>,
     mediaPlaybackManager: MediaPlaybackManager,
-    navController: NavController // Add this parameter
+    navController: NavController
 ) {
     val context = LocalContext.current // Get the current context
     val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button

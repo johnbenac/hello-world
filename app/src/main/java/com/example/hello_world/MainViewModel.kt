@@ -15,18 +15,20 @@ import java.util.UUID
 
 class MainViewModel(
     var textToSpeechServiceState: MutableState<TextToSpeechService>?,
-//    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
     private val openAiApiService: OpenAiApiService,
     private val conversationRepository: IConversationRepository
 ) : ViewModel() {
-//    private val conversationRepository = LocalRoomConversationRepository(context)
+
     val conversationModel = ConversationModel(conversationRepository)
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     val isAppSpeaking: Boolean get() = _isAppSpeaking.value
+    val showSaveDialog = mutableStateOf(false)
+    val saveDialogTitle = mutableStateOf("")
 
     private val mainHandler = Handler(Looper.getMainLooper())
     val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
@@ -36,6 +38,13 @@ class MainViewModel(
     }
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
+
+
+
+
+
+
+
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
@@ -53,11 +62,11 @@ class MainViewModel(
         conversationModel.addMessage(userMessageObj)
         conversationMessages.add(userMessageObj)
 
-//        conversationModel.addMessage(ConversationMessage("User", userMessage, audioFilePathState))
+
         val responseText = openAiApiService.sendMessage(conversationModel.conversation.messages)
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
 //        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
-//        conversationModel.addMessage(ConversationMessage("Assistant", responseText, audioFilePathState))
+
 
         val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
         conversationModel.addMessage(assistantMessageObj)
@@ -100,14 +109,7 @@ class MainViewModel(
             startPeriodicListeningCheck()
         }, 3000) // Check every 3 seconds
     }
-//    private fun onAssistantResponse(response: String, audioFilePathState: MutableState<String>) {
-//        val assistantAudioFilePathState = mutableStateOf("")
-////        Log.d("MainViewModel", "log: onAssistantResponse called")
-//        // Add assistant message to the conversation state
-//        conversationModel.addMessage(ConversationMessage("Assistant", response, assistantAudioFilePathState))
-////        Log.d("MainViewModel", "Assistant message added with audioFilePathState: $assistantAudioFilePathState")
-////        Log.d("MainViewModel", "log: _conversationMessages added")
-//    }
+
     fun stopListening() {
         voiceTriggerDetector.stopListening()
         Log.d("MainViewModel", "log: stopListening called 2")
@@ -141,4 +143,24 @@ class MainViewModel(
     }
 
 
+    fun saveConversation() {
+        showSaveDialog.value = true
+    }
+
+    fun onSaveDialogConfirmed() {
+        if (saveDialogTitle.value.isNotBlank()) {
+            viewModelScope.launch {
+                val updatedConversation = conversationModel.conversation.copy(title = saveDialogTitle.value)
+                conversationRepository.saveConversation(updatedConversation)
+                conversationModel.conversation = updatedConversation // Update the conversation in the ConversationModel
+            }
+            showSaveDialog.value = false
+            saveDialogTitle.value = ""
+        }
+    }
+
+    fun onSaveDialogDismissed() {
+        showSaveDialog.value = false
+        saveDialogTitle.value = ""
+    }
 }

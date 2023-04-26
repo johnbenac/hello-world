@@ -9,5 +9,8 @@ data class LocalConversationEntity(
     val id: String,
     val profileJson: String,
     val createdAt: Long,
-    val title: String?
+    val title: String?,
+    val dateStarted: Long,
+    val dateLastSaved: Long,
+    val messageCount: Int
 )

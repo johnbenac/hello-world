@@ -7,5 +7,5 @@ interface IConversationRepository {
     suspend fun saveConversation(conversation: Conversation)
     suspend fun loadConversation(conversationId: UUID): Conversation?
     suspend fun deleteConversation(conversationId: UUID)
-    // TODO: implementing audio export and compilation
+    suspend fun loadAllConversations(): List<Conversation>
 }

@@ -8,7 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class ConversationModel(private val conversationRepository: IConversationRepository) {
-    val conversation: Conversation = Conversation(
+    var conversation: Conversation = Conversation(
         profile = Profile(
             name = "Jake",
             systemMessage = "You are an AI assistant named Jake.",
