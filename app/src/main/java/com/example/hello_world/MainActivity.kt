@@ -3,6 +3,7 @@ package com.example.hello_world
 import ConversationMessage
 import EditSettingsScreen
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -23,31 +24,47 @@ class MainActivity : AppCompatActivity() {
     private var textToSpeechService: TextToSpeechService? = null // Create a text to speech service
     private lateinit var voiceTriggerDetector: VoiceTriggerDetector // Create a voice trigger detector
     private lateinit var openAiApiService: OpenAiApiService // Create an OpenAI API service
+    private lateinit var mainViewModel: MainViewModel
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1 // Create a request code for requesting audio permission
     private val settingsViewModel = SettingsViewModel() // Create a settings view model
     private val mediaPlaybackManager = AndroidMediaPlaybackManager() // Create a media playback manager
-    private lateinit var mainViewModel: MainViewModel // Create an main view model
 
 
-    override fun onCreate(savedInstanceState: Bundle?) { // Called when the activity is starting
-        Log.d("MainActivity", "log: MainActivity opened") // Log that the main activity was opened
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("MainActivity", "log: MainActivity opened")
         super.onCreate(savedInstanceState) // Call the super class onCreate to complete the creation of activity like the view hierarchy
         requestAudioPermission() // Request audio permission
-        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this, mediaPlaybackManager) { mainViewModel.startListening() }) // Create the text to speech service, AndroidTextToSpeechService is the default implementation
-        openAiApiService = OpenAiApiService("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", settingsViewModel) // Create the OpenAI API service
-        mainViewModel = MainViewModel(textToSpeechServiceState, this, settingsViewModel, openAiApiService) // Create the main view model
+
+        val conversationRepository = LocalRoomConversationRepository(this)
+        openAiApiService = OpenAiApiService("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", settingsViewModel)
+        mainViewModel = MainViewModel(null, this, settingsViewModel, openAiApiService, conversationRepository)
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this, mediaPlaybackManager) { mainViewModel.startListening() })
+        mainViewModel.textToSpeechServiceState = textToSpeechServiceState
+
+
         voiceTriggerDetector = mainViewModel.voiceTriggerDetector // Create the voice trigger detector
         setContent { // Set the content of the activity to be the UI defined in the composable function
             val navController = rememberNavController() // Create a nav controller
             NavHost(navController, startDestination = "main") { // Create a nav host
                 composable("main") { // Create a composable for the main screen
-                    MainScreen(mainViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState, mediaPlaybackManager) // Show the main screen
+                    MainScreen(mainViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState, mediaPlaybackManager, navController) // Show the main screen
                 } 
                 composable("settings") { // Create a composable for the settings screen
                     SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController) // Show the settings screen
                 }
                 composable("edit-settings") { // Create a composable for the edit settings screen
                     EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() }) // Show the edit settings screen
+                }
+                composable("savedConversations") {
+                    SavedConversationsScreen(
+                        viewModel = SavedConversationsViewModel(conversationRepository),
+                        onConversationSelected = { conversationId ->
+                            mainViewModel.loadConversation(conversationId)
+                            navController.popBackStack()
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }
@@ -87,5 +104,13 @@ class MainActivity : AppCompatActivity() {
                 finish() // Close the app
             }
         }
+    }
+    internal fun shareConversationText(conversationText: String) {
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, conversationText)
+            type = "text/plain"
+        }
+        startActivity(Intent.createChooser(sendIntent, "Share conversation text"))
     }
 }

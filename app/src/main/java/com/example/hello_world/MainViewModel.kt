@@ -10,15 +10,18 @@ import android.os.Looper
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 
 class MainViewModel(
-    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
+//    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
     private val context: Context,
     private val settingsViewModel: SettingsViewModel,
-    private val openAiApiService: OpenAiApiService
+    private val openAiApiService: OpenAiApiService,
+    private val conversationRepository: IConversationRepository
 ) : ViewModel() {
-    private val conversationRepository = LocalRoomConversationRepository(context)
+//    private val conversationRepository = LocalRoomConversationRepository(context)
     val conversationModel = ConversationModel(conversationRepository)
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
@@ -41,7 +44,6 @@ class MainViewModel(
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
 
 
-
         stopListening()
         val audioFilePathState = mutableStateOf("")
         // Add user message to the conversation state
@@ -61,14 +63,12 @@ class MainViewModel(
         conversationModel.addMessage(assistantMessageObj)
         conversationMessages.add(assistantMessageObj)
 
-        textToSpeechServiceState.value.renderSpeech(responseText.replace("\n", " "), onFinish = {
+        textToSpeechServiceState?.value?.renderSpeech(responseText.replace("\n", " "), onFinish = {
             if (conversationModel.conversation.messages.isNotEmpty()) {
             mainHandler.post {
                 _isAppSpeaking.value = false
-//                if (_isListening.value) {
                 startListening()
                 Log.d("MainViewModel", "log: startListening called associated with onFinish")
-//                }
             }
         }}, onStart = {
             mainHandler.post {
@@ -127,7 +127,18 @@ class MainViewModel(
             sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
     }
+
+    fun loadConversation(conversationId: UUID) {
+        viewModelScope.launch {
+            val loadedConversation = conversationRepository.loadConversation(conversationId)
+            if (loadedConversation != null) {
+                // TODO: Update the conversation state with the loaded conversation
+            }
+        }
+    }
     init {
         startPeriodicListeningCheck()
     }
+
+
 }

@@ -23,20 +23,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.navigation.NavController
 
 
 @Composable
 @ExperimentalMaterial3Api
 @OptIn(ExperimentalMaterialApi::class)
-fun MainScreen( // Composable for the main screen. This is the main screen of the app
-    mainViewModel: MainViewModel, // The main view model
-    settingsViewModel: SettingsViewModel, // The settings view model
-    onSettingsClicked: () -> Unit, // Function to call when the settings button is pressed
-    textToSpeechServiceState: MutableState<TextToSpeechService>, // The text to speech service
-    mediaPlaybackManager: MediaPlaybackManager // The media playback manager
+fun MainScreen(
+    mainViewModel: MainViewModel,
+    settingsViewModel: SettingsViewModel,
+    onSettingsClicked: () -> Unit,
+    textToSpeechServiceState: MutableState<TextToSpeechService>,
+    mediaPlaybackManager: MediaPlaybackManager,
+    navController: NavController // Add this parameter
 ) {
     val context = LocalContext.current // Get the current context
     val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
+    val conversationTextState = remember { mutableStateOf("") }
     BoxWithConstraints( // Create a box with constraints to get the maximum height of the screen
         modifier = Modifier // Set the modifier for the box
             .fillMaxSize() // Make the box fill the entire screen
@@ -139,6 +142,27 @@ fun MainScreen( // Composable for the main screen. This is the main screen of th
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text("Scroll to Bottom")
+            }
+            Button(
+                onClick = { navController.navigate("savedConversations") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Saved Conversations")
+            }
+            Button(
+                onClick = { mainViewModel.conversationModel.saveConversation() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Save Conversation")
+            }
+            Button(
+                onClick = {
+                    val conversationText = mainViewModel.conversationMessages.joinToString("\n") { it.message }
+                    conversationTextState.value = conversationText
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Share Conversation Text")
             }
         }
     }
