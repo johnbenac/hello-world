@@ -1,7 +1,8 @@
 package com.example.hello_world
 
-import Conversation
+import com.example.hello_world.Conversation
 import ConversationMessage
+import Profile
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf

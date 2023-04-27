@@ -1,4 +1,5 @@
 package com.example.hello_world
+import com.example.hello_world.Conversation
 import ConversationMessage
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
@@ -22,10 +23,12 @@ class MainViewModel(
     private val conversationRepository: IConversationRepository
 ) : ViewModel() {
 
-    val conversationModel = ConversationModel(conversationRepository)
+
     val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
+    private val conversationsManager = ConversationsManager(conversationRepository)
+    private val conversationManager = ConversationManager(Conversation(profile = Profile.defaultProfile))
     val isAppSpeaking: Boolean get() = _isAppSpeaking.value
     val showSaveDialog = mutableStateOf(false)
     val saveDialogTitle = mutableStateOf("")
@@ -34,16 +37,35 @@ class MainViewModel(
     val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
 
     val conversationMessages = mutableStateListOf<ConversationMessage>().apply {
-        addAll(conversationModel.conversation.messages)
+        addAll(conversationManager.conversation.messages)
     }
     private val _isListening = mutableStateOf(false)
     val isListening: Boolean get() = _isListening.value
 
 
+    fun loadInitialConversation(conversationId: UUID? = null) {
+        viewModelScope.launch {
+            val loadedConversation = if (conversationId != null) {
+                conversationsManager.loadConversation(conversationId)
+            } else {
+                null
+            }
+            if (loadedConversation != null) {
+                conversationManager.conversation = loadedConversation
+            } else {
+                // Use the default profile for the initial conversation
+                val initialConversation = Conversation(profile = Profile.defaultProfile)
+                conversationManager.conversation = initialConversation
+            }
+        }
+    }
 
 
-
-
+    fun saveCurrentConversation() {
+        viewModelScope.launch {
+            conversationsManager.saveConversation(conversationManager.conversation)
+        }
+    }
 
     fun startListening() {
         voiceTriggerDetector.startListening()
@@ -59,21 +81,21 @@ class MainViewModel(
 
 
         val userMessageObj = ConversationMessage("User", userMessage, audioFilePathState)
-        conversationModel.addMessage(userMessageObj)
+        conversationManager.addMessage(userMessageObj)
         conversationMessages.add(userMessageObj)
 
 
-        val responseText = openAiApiService.sendMessage(conversationModel.conversation.messages)
+        val responseText = openAiApiService.sendMessage(conversationManager.conversation.messages)
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
 //        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
 
 
         val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
-        conversationModel.addMessage(assistantMessageObj)
+        conversationManager.addMessage(assistantMessageObj)
         conversationMessages.add(assistantMessageObj)
 
         textToSpeechServiceState?.value?.renderSpeech(responseText.replace("\n", " "), onFinish = {
-            if (conversationModel.conversation.messages.isNotEmpty()) {
+            if (conversationManager.conversation.messages.isNotEmpty()) {
             mainHandler.post {
                 _isAppSpeaking.value = false
                 startListening()
@@ -84,19 +106,19 @@ class MainViewModel(
                 stopListening()
                 Log.d("MainViewModel", "log: stopListening called associated with onStart")
             }
-        }, audioFilePathState = conversationModel.conversation.messages.last().audioFilePath)
+        }, audioFilePathState = conversationManager.conversation.messages.last().audioFilePath)
 //        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
         _isAppSpeaking.value = true
     }
 
     fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
-        conversationModel.updateMessage(index, updatedMessage)
+        conversationManager.updateMessage(index, updatedMessage)
         conversationMessages[index] = updatedMessage
     }
 
     fun deleteMessage(index: Int) {
         viewModelScope.launch {
-            conversationModel.deleteConversation(conversationModel.conversation.id)
+            conversationManager.deleteMessage(index)
             conversationMessages.removeAt(index)
         }
     }
@@ -132,13 +154,16 @@ class MainViewModel(
 
     fun loadConversation(conversationId: UUID) {
         viewModelScope.launch {
-            val loadedConversation = conversationRepository.loadConversation(conversationId)
+            val loadedConversation = conversationsManager.loadConversation(conversationId)
             if (loadedConversation != null) {
-                // TODO: Update the conversation state with the loaded conversation
+                conversationManager.conversation = loadedConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
             }
         }
     }
     init {
+        loadInitialConversation()
         startPeriodicListeningCheck()
     }
 
@@ -150,9 +175,9 @@ class MainViewModel(
     fun onSaveDialogConfirmed() {
         if (saveDialogTitle.value.isNotBlank()) {
             viewModelScope.launch {
-                val updatedConversation = conversationModel.conversation.copy(title = saveDialogTitle.value)
-                conversationRepository.saveConversation(updatedConversation)
-                conversationModel.conversation = updatedConversation // Update the conversation in the ConversationModel
+                val updatedConversation = conversationManager.conversation.copy(title = saveDialogTitle.value)
+                conversationsManager.saveConversation(conversationManager.conversation)
+                conversationManager.conversation = updatedConversation // Update the conversation in the ConversationModel
             }
             showSaveDialog.value = false
             saveDialogTitle.value = ""

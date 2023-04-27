@@ -1,6 +1,6 @@
 package com.example.hello_world
 
-import Conversation
+import com.example.hello_world.Conversation
 import java.util.UUID
 
 interface IConversationRepository {

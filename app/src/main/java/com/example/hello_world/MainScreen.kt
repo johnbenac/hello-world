@@ -150,7 +150,7 @@ fun MainScreen(
                 Text("Saved Conversations")
             }
             Button(
-                onClick = { mainViewModel.conversationModel.saveConversation() },
+                onClick = { mainViewModel.saveCurrentConversation() },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text("Save Conversation")

@@ -1,6 +1,6 @@
 package com.example.hello_world
 
-import Conversation
+import com.example.hello_world.Conversation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

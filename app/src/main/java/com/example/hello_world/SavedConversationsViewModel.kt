@@ -1,6 +1,6 @@
 package com.example.hello_world
 
-import Conversation
+import com.example.hello_world.Conversation
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

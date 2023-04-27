@@ -1,4 +1,6 @@
-import com.example.hello_world.Profile
+package com.example.hello_world
+import ConversationMessage
+import Profile
 import java.util.UUID
 
 data class Conversation(

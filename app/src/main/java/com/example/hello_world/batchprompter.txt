@@ -84,6 +84,13 @@ fun shutdown()
 class Conversation()
 ```
 
+```ConversationManager.kt
+class ConversationManager(var conversation: Conversation)
+fun addMessage()
+fun updateMessage()
+fun deleteMessage()
+```
+
 ```ConversationMessage.kt
 class ConversationMessage(
     val sender: String,
@@ -92,14 +99,12 @@ class ConversationMessage(
 )
 ```
 
-```ConversationModel.kt
-class ConversationModel(private val conversationRepository: IConversationRepository)
-fun addMessage()
-fun updateMessage()
-fun deleteMessage()
+```ConversationsManager.kt
+class ConversationsManager(private val conversationRepository: IConversationRepository)
 fun saveConversation()
 fun loadConversation()
 fun deleteConversation()
+fun loadAllConversations()
 ```
 
 ```EditSettingsScreen.kt
@@ -199,6 +204,7 @@ class MainViewModel(
     private val openAiApiService: OpenAiApiService,
     private val conversationRepository: IConversationRepository
 )
+fun loadInitialConversation()
 fun startListening()
 fun sendUserMessageToOpenAi()
 fun updateMessage()
