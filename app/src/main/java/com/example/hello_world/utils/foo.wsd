@@ -1,0 +1,34 @@
+@startuml
+class MainViewModel {
+    +_isAppSpeaking: MutableState<Boolean>
+    -_isListening: MutableState<Boolean>
+    -context: Context
+    -conversationManager: ConversationManager
+    +conversationMessages: SnapshotStateList<ConversationMessage>
+    -conversationRepository: IConversationRepository
+    -conversationsManager: ConversationsManager
+    +isAppSpeaking: Boolean
+    +isListening: Boolean
+    +latestPartialResult: MutableState<String?>
+    -mainHandler: Handler
+    +mediaPlaybackManager: MediaPlaybackManager
+    -openAiApiService: OpenAiApiService
+    +saveDialogTitle: MutableState<String>
+    -settingsViewModel: SettingsViewModel
+    +showSaveDialog: MutableState<Boolean>
+    +textToSpeechServiceState: MutableState<TextToSpeechService>
+    +voiceTriggerDetector: VoiceTriggerDetector
+    +deleteMessage(index: Int): Unit
+    +loadConversation(conversationId: UUID): Unit
+    +loadInitialConversation(conversationId: UUID): Unit
+    +onSaveDialogConfirmed(): Unit
+    +onSaveDialogDismissed(): Unit
+    +onTriggerWordDetected(userMessage: String): Unit
+    +saveConversation(): Unit
+    +saveCurrentConversation(): Unit
+    +startListening(): Unit
+    +stopListening(): Unit
+    +updateMessage(index: Int, updatedMessage: ConversationMessage): Unit
+}
+
+@enduml

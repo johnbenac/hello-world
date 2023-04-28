@@ -1,5 +1,4 @@
 package com.example.hello_world
-import com.example.hello_world.Conversation
 import ConversationMessage
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
+import com.example.hello_world.services.AndroidMediaPlaybackManager
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -28,7 +28,7 @@ class MainViewModel(
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     private val conversationsManager = ConversationsManager(conversationRepository)
-    private val conversationManager = ConversationManager(Conversation(profile = Profile.defaultProfile))
+    private val conversationManager = ConversationManager(Conversation(configPack = ConfigPack.defaultConfigPack))
     val isAppSpeaking: Boolean get() = _isAppSpeaking.value
     val showSaveDialog = mutableStateOf(false)
     val saveDialogTitle = mutableStateOf("")
@@ -54,7 +54,7 @@ class MainViewModel(
                 conversationManager.conversation = loadedConversation
             } else {
                 // Use the default profile for the initial conversation
-                val initialConversation = Conversation(profile = Profile.defaultProfile)
+                val initialConversation = Conversation(configPack = ConfigPack.defaultConfigPack)
                 conversationManager.conversation = initialConversation
             }
         }

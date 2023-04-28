@@ -39,7 +39,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
     suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
-        val currentProfile = settingsViewModel.selectedProfile
+        val currentProfile = settingsViewModel.selectedConfigPack
         val systemMessage = currentProfile?.systemMessage ?: "you are an ai assistant named jake"
         val messages = mutableListOf(OpenAiMessage("system", systemMessage))
 
@@ -47,7 +47,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
             messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
         }
 
-        val selectedProfile = settingsViewModel.selectedProfile
+        val selectedProfile = settingsViewModel.selectedConfigPack
 
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(

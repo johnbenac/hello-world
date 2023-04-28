@@ -1,6 +1,6 @@
 package com.example.hello_world
 
-import Profile
+import ConfigPack
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +25,7 @@ import androidx.navigation.NavController
 fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () -> Unit, navController: NavController) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Current Settings", modifier = Modifier.padding(16.dp))
-        CurrentSettings(settingsViewModel.selectedProfile)
+        CurrentSettings(settingsViewModel.selectedConfigPack)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -62,7 +62,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () ->
                     ) {
                         Text("Edit")
                     }
-                    if (profile !in settingsViewModel.defaultProfiles) {
+                    if (profile !in settingsViewModel.defaultConfigPacks) {
                         Button(onClick = {
                             Log.d("SettingsScreen", "Delete button clicked for profile: $profile")
                             settingsViewModel.deleteProfile(profile)
@@ -77,8 +77,8 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () ->
 }
 
 @Composable
-fun CurrentSettings(selectedProfile: Profile?) {
-    selectedProfile?.let { profile ->
+fun CurrentSettings(selectedConfigPack: ConfigPack?) {
+    selectedConfigPack?.let { profile ->
         Card(
             modifier = Modifier
                 .padding(8.dp)

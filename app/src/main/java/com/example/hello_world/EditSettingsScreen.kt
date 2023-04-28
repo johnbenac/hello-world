@@ -5,20 +5,16 @@ import androidx.compose.material.Button
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.hello_world.SettingsViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material.RadioButton
 
 import androidx.compose.material.Slider
 
 @Composable
 fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
-    val editedProfile = settingsViewModel.editedProfile.value // Access the value property here
+    val editedProfile = settingsViewModel.editedConfigPack.value // Access the value property here
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Edit Settings", modifier = Modifier.padding(16.dp))

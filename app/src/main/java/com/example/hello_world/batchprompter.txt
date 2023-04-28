@@ -111,7 +111,7 @@ fun loadAllConversations()
 fun EditSettingsScreen()
 ```
 
-```ElevenLabsTextToSpeechSerivce.kt
+```ElevenLabsTextToSpeechService.kt
 class ElevenLabsTextToSpeechService()
 fun renderSpeech()
 fun onFailure()
@@ -205,6 +205,7 @@ class MainViewModel(
     private val conversationRepository: IConversationRepository
 )
 fun loadInitialConversation()
+fun saveCurrentConversation()
 fun startListening()
 fun sendUserMessageToOpenAi()
 fun updateMessage()

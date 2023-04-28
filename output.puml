@@ -1,0 +1,334 @@
+@startuml
+class AndroidMediaPlaybackManager {
+    -currentFilePath: String
+    -mediaController: MediaController
+    +mediaPlayer: MediaPlayer
+    -playbackPosition: Int
+    +isPlaying(): Boolean
+    +pause(): Unit
+    +playAudio(filePath: String, context: Context, onFinish: Function0): Unit
+    +seekBackward(): Unit
+    +seekForward(): Unit
+}
+
+class AndroidTextToSpeechService {
+    -context: Context
+    -lastGeneratedAudioFilePath: String
+    +mediaPlaybackManager: MediaPlaybackManager
+    -onPlaybackFinished: Function0<Unit>
+    -textToSpeech: TextToSpeech
+    +getAudioFilePath(): String
+    +onInit(status: Int): Unit
+    +renderSpeech(text: String, onFinish: Function0, onStart: Function0, audioFilePathState: MutableState): String
+    +shutdown(): Unit
+    +stop(): Unit
+}
+
+class Conversation {
+    +createdAt: Long
+    +dateLastSaved: Long
+    +dateStarted: Long
+    +id: UUID
+    +messageCount: Int
+    +messages: List<ConversationMessage>
+    +profile: Profile
+    +title: String
+    +component1(): UUID
+    +component2(): List<ConversationMessage>
+    +component3(): Profile
+    +component4(): Long
+    +component5(): String
+    +component6(): Long
+    +component7(): Long
+    +component8(): Int
+    +copy(id: UUID, messages: List, profile: Profile, createdAt: Long, title: String, dateStarted: Long, dateLastSaved: Long, messageCount: Int): Conversation
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class ConversationManager {
+    +conversation: Conversation
+    +addMessage(message: ConversationMessage): Unit
+    +deleteMessage(index: Int): Unit
+    +updateMessage(index: Int, updatedMessage: ConversationMessage): Unit
+}
+
+class ConversationMessage {
+    +audioFilePath: MutableState<String>
+    +message: String
+    +sender: String
+    +component1(): String
+    +component2(): String
+    +component3(): MutableState<String>
+    +copy(sender: String, message: String, audioFilePath: MutableState): ConversationMessage
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class ConversationsManager {
+    -conversationRepository: IConversationRepository
+    +deleteConversation(conversationId: UUID): Unit
+    +loadAllConversations(): List<Conversation>
+    +loadConversation(conversationId: UUID): Conversation
+    +saveConversation(conversation: Conversation): Unit
+}
+
+class ElevenLabsTextToSpeechService {
+    -apiKey: String
+    -client: OkHttpClient
+    -context: Context
+    -lastGeneratedAudioFilePath: String
+    +mediaPlaybackManager: MediaPlaybackManager
+    -onPlaybackFinished: Function0<Unit>
+    -voiceId: String
+    +getAudioFilePath(): String
+    +renderSpeech(text: String, onFinish: Function0, onStart: Function0, audioFilePathState: MutableState): String
+    +shutdown(): Unit
+    +stop(): Unit
+}
+
+interface IConversationRepository {
+    +{abstract} deleteConversation(conversationId: UUID): Unit
+    +{abstract} loadAllConversations(): List<Conversation>
+    +{abstract} loadConversation(conversationId: UUID): Conversation
+    +{abstract} saveConversation(conversation: Conversation): Unit
+}
+
+class LocalRoomConversationRepository {
+    -conversationDao: LocalConversationDao
+    -moshi: Moshi
+    +deleteConversation(conversationId: UUID): Unit
+    +loadAllConversations(): List<Conversation>
+    +loadConversation(conversationId: UUID): Conversation
+    +saveConversation(conversation: Conversation): Unit
+}
+
+IConversationRepository <|.. LocalRoomConversationRepository
+abstract class LocalConversationDatabase {
+    +{abstract} conversationDao(): LocalConversationDao
+}
+
+class LocalConversationDatabase_Impl {
+    +conversationDao(): LocalConversationDao
+    +clearAllTables(): Unit
+    +getAutoMigrations(autoMigrationSpecsMap: Map): List<Migration>
+    +getRequiredAutoMigrationSpecs(): Set<AutoMigrationSpec>>
+    -_localConversationDao: LocalConversationDao
+}
+
+LocalConversationDatabase <|-- LocalConversationDatabase_Impl
+class LocalConversationEntity {
+    +createdAt: Long
+    +dateLastSaved: Long
+    +dateStarted: Long
+    +id: String
+    +messageCount: Int
+    +profileJson: String
+    +title: String
+    +component1(): String
+    +component2(): String
+    +component3(): Long
+    +component4(): String
+    +component5(): Long
+    +component6(): Long
+    +component7(): Int
+    +copy(id: String, profileJson: String, createdAt: Long, title: String, dateStarted: Long, dateLastSaved: Long, messageCount: Int): LocalConversationEntity
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class LocalConversationMessageEntity {
+    +audioFilePath: String
+    +conversationId: String
+    +id: Int
+    +message: String
+    +sender: String
+    +component1(): Int
+    +component2(): String
+    +component3(): String
+    +component4(): String
+    +component5(): String
+    +copy(id: Int, conversationId: String, sender: String, message: String, audioFilePath: String): LocalConversationMessageEntity
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class LocalRoomConversationRepository {
+    -conversationDao: LocalConversationDao
+    -moshi: Moshi
+    +deleteConversation(conversationId: UUID): Unit
+    +loadAllConversations(): List<Conversation>
+    +loadConversation(conversationId: UUID): Conversation
+    +saveConversation(conversation: Conversation): Unit
+}
+
+class MainActivity {
+    -RECORD_AUDIO_PERMISSION_REQUEST_CODE: Int
+    -mainViewModel: MainViewModel
+    -mediaPlaybackManager: AndroidMediaPlaybackManager
+    -openAiApiService: OpenAiApiService
+    -settingsViewModel: SettingsViewModel
+    -textToSpeechService: TextToSpeechService
+    -voiceTriggerDetector: VoiceTriggerDetector
+    +onRequestPermissionsResult(requestCode: Int, permissions: Array, grantResults: IntArray): Unit
+}
+
+class MainViewModel {
+    +_isAppSpeaking: MutableState<Boolean>
+    -_isListening: MutableState<Boolean>
+    -context: Context
+    -conversationManager: ConversationManager
+    +conversationMessages: SnapshotStateList<ConversationMessage>
+    -conversationRepository: IConversationRepository
+    -conversationsManager: ConversationsManager
+    +isAppSpeaking: Boolean
+    +isListening: Boolean
+    +latestPartialResult: MutableState<String?>
+    -mainHandler: Handler
+    +mediaPlaybackManager: MediaPlaybackManager
+    -openAiApiService: OpenAiApiService
+    +saveDialogTitle: MutableState<String>
+    -settingsViewModel: SettingsViewModel
+    +showSaveDialog: MutableState<Boolean>
+    +textToSpeechServiceState: MutableState<TextToSpeechService>
+    +voiceTriggerDetector: VoiceTriggerDetector
+    +deleteMessage(index: Int): Unit
+    +loadConversation(conversationId: UUID): Unit
+    +loadInitialConversation(conversationId: UUID): Unit
+    +onSaveDialogConfirmed(): Unit
+    +onSaveDialogDismissed(): Unit
+    +onTriggerWordDetected(userMessage: String): Unit
+    +saveConversation(): Unit
+    +saveCurrentConversation(): Unit
+    +startListening(): Unit
+    +stopListening(): Unit
+    +updateMessage(index: Int, updatedMessage: ConversationMessage): Unit
+}
+
+class OpenAiApiResponse {
+    +choices: List<OpenAiApiChoice>
+    +component1(): List<OpenAiApiChoice>
+    +copy(choices: List): OpenAiApiResponse
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class OpenAiApiService {
+    -apiKey: String
+    -client: OkHttpClient
+    -moshi: Moshi
+    -settingsViewModel: SettingsViewModel
+    -timeoutInSeconds: Long
+    +sendMessage(conversationHistory: List): String
+}
+
+class Profile {
+    +frequencyPenalty: Double
+    +maxLength: Int
+    +model: String
+    +name: String
+    +presencePenalty: Double
+    +systemMessage: String
+    +temperature: Double
+    +component1(): String
+    +component2(): String
+    +component3(): Int
+    +component4(): Double
+    +component5(): Double
+    +component6(): Double
+    +component7(): String
+    +copy(name: String, systemMessage: String, maxLength: Int, temperature: Double, frequencyPenalty: Double, presencePenalty: Double, model: String): Profile
+    +equals(other: Any): Boolean
+    +hashCode(): Int
+    +toString(): String
+}
+
+class SavedConversationsViewModel {
+    -_savedConversations: MutableStateFlow<Conversation>>
+    -conversationRepository: IConversationRepository
+    +savedConversations: StateFlow<Conversation>>
+    +deleteConversation(conversationId: UUID): Unit
+}
+
+class SettingsViewModel {
+    +defaultProfiles: List<Profile>
+    +editedProfile: MutableState<Profile>
+    +profiles: List<Profile>
+    +selectedProfile: Profile
+    +applyProfile(profile: Profile): Unit
+    +deleteProfile(profile: Profile): Unit
+    +saveCustomProfile(profile: Profile): Unit
+    +saveEditedProfile(): Unit
+    +updateEditedProfileFrequencyPenalty(frequencyPenalty: Double): Unit
+    +updateEditedProfileMaxLength(maxLength: Int): Unit
+    +updateEditedProfileModel(model: String): Unit
+    +updateEditedProfileName(name: String): Unit
+    +updateEditedProfilePresencePenalty(presencePenalty: Double): Unit
+    +updateEditedProfileSystemMessage(systemMessage: String): Unit
+    +updateEditedProfileTemperature(temperature: Double): Unit
+}
+
+class VoiceTriggerDetector {
+    -context: Context
+    -keepListening: Boolean
+    -latestPartialResult: MutableState<String?>
+    -mainHandler: Handler
+    -onTriggerWordDetected: Function1<String, Unit>
+    -speechRecognizer: SpeechRecognizer
+    -triggerWord: String
+    +onBeginningOfSpeech(): Unit
+    +onBufferReceived(buffer: ByteArray): Unit
+    +onEndOfSpeech(): Unit
+    +onError(error: Int): Unit
+    +onEvent(eventType: Int, params: Bundle): Unit
+    +onPartialResults(partialResults: Bundle): Unit
+    +onReadyForSpeech(params: Bundle): Unit
+    +onResults(results: Bundle): Unit
+    +onRmsChanged(rmsdB: Float): Unit
+    +startListening(): Unit
+    +stopListening(): Unit
+}
+
+interface TextToSpeechService {
+    +{abstract} mediaPlaybackManager: MediaPlaybackManager
+    +{abstract} getAudioFilePath(): String
+    +{abstract} renderSpeech(text: String, onFinish: Function0, onStart: Function0, audioFilePathState: MutableState): String
+    +{abstract} shutdown(): Unit
+    +{abstract} stop(): Unit
+}
+
+class AndroidTextToSpeechService {
+    -context: Context
+    -lastGeneratedAudioFilePath: String
+    +mediaPlaybackManager: MediaPlaybackManager
+    -onPlaybackFinished: Function0<Unit>
+    -textToSpeech: TextToSpeech
+    +getAudioFilePath(): String
+    +onInit(status: Int): Unit
+    +renderSpeech(text: String, onFinish: Function0, onStart: Function0, audioFilePathState: MutableState): String
+    +shutdown(): Unit
+    +stop(): Unit
+}
+
+class ElevenLabsTextToSpeechService {
+    -apiKey: String
+    -client: OkHttpClient
+    -context: Context
+    -lastGeneratedAudioFilePath: String
+    +mediaPlaybackManager: MediaPlaybackManager
+    -onPlaybackFinished: Function0<Unit>
+    -voiceId: String
+    +getAudioFilePath(): String
+    +renderSpeech(text: String, onFinish: Function0, onStart: Function0, audioFilePathState: MutableState): String
+    +shutdown(): Unit
+    +stop(): Unit
+}
+
+TextToSpeechService <|.. AndroidTextToSpeechService
+TextToSpeechService <|.. ElevenLabsTextToSpeechService
+@enduml
