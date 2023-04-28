@@ -14,13 +14,13 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 
-class MainViewModel(
-    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
-
-    private val context: Context,
-    private val settingsViewModel: SettingsViewModel,
-    private val openAiApiService: OpenAiApiService,
-    private val conversationRepository: IConversationRepository
+class SessionViewModel(
+    val conversationId: UUID?,
+    val context: Context,
+    val settingsViewModel: SettingsViewModel,
+    val openAiApiService: OpenAiApiService,
+    val conversationRepository: IConversationRepository,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?
 ) : ViewModel() {
 
 
@@ -159,11 +159,14 @@ class MainViewModel(
                 conversationManager.conversation = loadedConversation
                 conversationMessages.clear()
                 conversationMessages.addAll(conversationManager.conversation.messages)
+                Log.d("SessionViewModel", "Loaded conversation ID: ${loadedConversation.id}")
+                Log.d("SessionViewModel", "Number of messages in loaded conversation: ${loadedConversation.messages.size}")
+                Log.d("SessionViewModel", "Messages in loaded conversation: ${loadedConversation.messages}")
             }
         }
     }
     init {
-        loadInitialConversation()
+        loadInitialConversation(conversationId)
         startPeriodicListeningCheck()
     }
 
@@ -177,7 +180,7 @@ class MainViewModel(
             viewModelScope.launch {
                 val updatedConversation = conversationManager.conversation.copy(title = saveDialogTitle.value)
                 conversationsManager.saveConversation(conversationManager.conversation)
-                conversationManager.conversation = updatedConversation // Update the conversation in the ConversationModel
+                conversationManager.conversation = updatedConversation
             }
             showSaveDialog.value = false
             saveDialogTitle.value = ""

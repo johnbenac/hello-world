@@ -1,5 +1,6 @@
 package com.example.hello_world
 
+import android.util.Log
 import com.example.hello_world.Conversation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -74,7 +75,10 @@ fun SavedConversationsScreen(
                     val conversation = savedConversations[index]
                     ConversationCard(
                         conversation = conversation,
-                        onClick = { onConversationSelected(conversation.id) },
+                        onClick = {
+                            Log.d("SavedConversationsScreen", "Selected conversation ID: ${conversation.id}")
+                            onConversationSelected(conversation.id)
+                        },
                         onDeleteClicked = { viewModel.deleteConversation(conversation.id) }
                     )
                 }

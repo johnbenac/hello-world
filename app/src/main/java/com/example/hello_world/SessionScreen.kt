@@ -29,14 +29,19 @@ import androidx.navigation.NavController
 @Composable
 @ExperimentalMaterial3Api
 @OptIn(ExperimentalMaterialApi::class)
-fun MainScreen(
-    mainViewModel: MainViewModel,
+fun SessionScreen(
+    sessionViewModel: SessionViewModel,
     settingsViewModel: SettingsViewModel,
     onSettingsClicked: () -> Unit,
     textToSpeechServiceState: MutableState<TextToSpeechService>,
     mediaPlaybackManager: MediaPlaybackManager,
     navController: NavController
 ) {
+    LaunchedEffect(sessionViewModel) {
+        sessionViewModel.conversationId?.let {
+            sessionViewModel.loadConversation(it)
+        }
+    }
     val context = LocalContext.current // Get the current context
     val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
     val conversationTextState = remember { mutableStateOf("") }
@@ -48,21 +53,19 @@ fun MainScreen(
 
         val lazyListState = rememberLazyListState() // Create a lazy list state for the lazy column
 
-        val messages = mainViewModel.conversationMessages // Get the conversation messages
-        Log.d("MainScreen", "Number of messages: ${messages.size}")
-        LaunchedEffect(Unit) { // Create a launched effect
-            if (scrollToBottomClicked.value) { // If the scroll to bottom button was clicked
-                Log.d("MainScreen", "LaunchedEffect triggered")
-                val targetIndex = messages.size - 1 // Get the index of the last message
-                Log.d("MainScreen", "Target index for scrolling: $targetIndex")
-                try { // Try to scroll to the last message
-                    lazyListState.animateScrollToItem(targetIndex) // Scroll to the last message
-                    Log.d("MainScreen", "animateScrollToItem to item number $targetIndex")
-                } catch (e: Exception) { 
-                    Log.e("MainScreen", "Error while animating scroll to item", e)
+        val messages = sessionViewModel.conversationMessages // Get the conversation messages
+        Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
+        LaunchedEffect(Unit) {
+            if (scrollToBottomClicked.value) {
+                val targetIndex = messages.size - 1
+                try {
+                    lazyListState.animateScrollToItem(targetIndex)
+                } catch (e: Exception) {
+                    Log.e("SessionScreen", "Error while animating scroll to item", e)
                 }
-                scrollToBottomClicked.value = false // Reset the scroll to bottom button clicked state
+                scrollToBottomClicked.value = false
             }
+            Log.d("SessionScreen", "Current messages in session screen: $messages")
         }
         val maxHeight = constraints.maxHeight // Get the maximum height of the screen
         Column(modifier = Modifier.fillMaxSize()) { // Create a column for the main screen
@@ -75,40 +78,40 @@ fun MainScreen(
                     MessageCard(
                         message = message,
                         onPlayAudio = { audioFilePath ->
-                            mainViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+                            sessionViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
                         },
                         onCardClicked = {
-                            Log.d("MainScreen", "Card with index ${messages.indexOf(message)} clicked")
+                            Log.d("SessionScreen", "Card with index ${messages.indexOf(message)} clicked")
                         },
                         mediaPlaybackManager = mediaPlaybackManager,
                         context = context,
                         onDeleteClicked = {
                             // Log the delete action and message index
-                            Log.d("MainScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
+                            Log.d("SessionScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
                             // Call the deleteMessage method from MainViewModel
-                            mainViewModel.deleteMessage(messages.indexOf(message))
+                            sessionViewModel.deleteMessage(messages.indexOf(message))
                         },
                         onEditClicked = { message, editedMessage ->
                             val index = messages.indexOf(message)
-                            mainViewModel.updateMessage(index, message.copy(message = editedMessage))
+                            sessionViewModel.updateMessage(index, message.copy(message = editedMessage))
                             // Log the edit action and message index
-                            Log.d("MainScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
+                            Log.d("SessionScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
                         }
                     )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the messages and the buttons
             Text( // Show the listening status
-                text = if (mainViewModel.isListening) "Listening..." else "Not Listening",  // Show "Listening..." if the app is listening and "Not Listening" if the app is not listening
+                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",  // Show "Listening..." if the app is listening and "Not Listening" if the app is not listening
                 modifier = Modifier.align(Alignment.CenterHorizontally) // Align the text to the center horizontally
             )
             Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the listening status and the buttons
             Button(
                 onClick = { // When the start listening button is pressed
                     if (textToSpeechServiceState.value is AndroidTextToSpeechService) { // If the text to speech service is the Android text to speech service
-                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { mainViewModel.startListening() }  // Set the text to speech service to the Eleven Labs text to speech service
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { sessionViewModel.startListening() }  // Set the text to speech service to the Eleven Labs text to speech service
                     } else { // If the text to speech service is not the Android text to speech service
-                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { mainViewModel.startListening() } // Set the text to speech service to the Android text to speech service
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { sessionViewModel.startListening() } // Set the text to speech service to the Android text to speech service
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
@@ -117,17 +120,17 @@ fun MainScreen(
             }
             Button( // Create a button for the start listening button
                 onClick = { // When the start listening button is pressed
-                    if (mainViewModel.isListening) {  // If the app is listening
-                        Log.d("MainScreen", "Stop Listening button clicked")  // Log that the stop listening button was clicked
-                        mainViewModel.stopListening() // Stop listening
+                    if (sessionViewModel.isListening) {  // If the app is listening
+                        Log.d("SessionScreen", "Stop Listening button clicked")  // Log that the stop listening button was clicked
+                        sessionViewModel.stopListening() // Stop listening
                     } else {
-                        Log.d("MainScreen", "Start Listening button clicked") // Log that the start listening button was clicked
-                        mainViewModel.startListening() // Start listening
+                        Log.d("SessionScreen", "Start Listening button clicked") // Log that the start listening button was clicked
+                        sessionViewModel.startListening() // Start listening
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
             ) {
-                Text(if (mainViewModel.isListening) "Stop Listening" else "Start Listening")  // Show "Stop Listening" if the app is listening and "Start Listening" if the app is not listening
+                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")  // Show "Stop Listening" if the app is listening and "Start Listening" if the app is not listening
             }
             Button( // Create a button for the settings button
                 onClick = onSettingsClicked, // When the settings button is pressed
@@ -144,20 +147,20 @@ fun MainScreen(
                 Text("Scroll to Bottom")
             }
             Button(
-                onClick = { navController.navigate("savedConversations") },
+                onClick = { navController.navigate("sessions") },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text("Saved Conversations")
             }
             Button(
-                onClick = { mainViewModel.saveCurrentConversation() },
+                onClick = { sessionViewModel.saveCurrentConversation() },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text("Save Conversation")
             }
             Button(
                 onClick = {
-                    val conversationText = mainViewModel.conversationMessages.joinToString("\n") { it.message }
+                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { it.message }
                     conversationTextState.value = conversationText
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
