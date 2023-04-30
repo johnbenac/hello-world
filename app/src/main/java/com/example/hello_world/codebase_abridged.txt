@@ -4,27 +4,7 @@
                      
 
 
-                     ```AndroidMediaPlaybackManager.kt
-class AndroidMediaPlaybackManager()
-fun seekForward()
-fun seekBackward()
-fun pause()
-fun isPlaying()
-fun playAudio()
-fun start()
-fun pause()
-fun getDuration()
-fun getCurrentPosition()
-fun getBufferPercentage()
-fun isPlaying()
-fun seekTo()
-fun canPause()
-fun getAudioSessionId()
-fun canSeekBackward()
-fun canSeekForward()
-```
-
-```AndroidTextToSpeechService.kt
+                     ```AndroidTextToSpeechService.kt
 class AndroidTextToSpeechService()
 fun onInit()
 fun renderSpeech()
@@ -34,6 +14,18 @@ fun onError()
 fun getAudioFilePath()
 fun stop()
 fun shutdown()
+```
+
+```com.example.hello_world.models.ConfigPack.kt
+class com.example.hello_world.models.ConfigPack(
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+)
 ```
 
 ```Conversation.kt
@@ -47,8 +39,8 @@ fun updateMessage()
 fun deleteMessage()
 ```
 
-```ConversationMessage.kt
-class ConversationMessage(
+```com.example.hello_world.models.ConversationMessage.kt
+class com.example.hello_world.models.ConversationMessage(
     val sender: String,
     val message: String,
     val audioFilePath: MutableState<String>
@@ -78,6 +70,14 @@ fun buildTtsRequest()
 fun handleTtsResponse()
 fun stop()
 fun shutdown()
+```
+
+```HomeScreen.kt
+fun HomeScreen()
+```
+
+```HomeViewModel.kt
+class HomeViewModel()
 ```
 
 ```IConversationRepository.kt
@@ -133,11 +133,6 @@ fun loadAllConversations()
 
 ```MainActivity.kt
 class MainActivity()
-class onCreate()
-class onResume()
-class onPause()
-class onDestroy()
-class onRequestPermissionsResult()
 fun onCreate()
 fun requestAudioPermission()
 fun onResume()
@@ -145,34 +140,6 @@ fun onPause()
 fun onDestroy()
 fun onRequestPermissionsResult()
 fun shareConversationText()
-```
-
-```MainScreen.kt
-fun MainScreen()
-```
-
-```MainViewModel.kt
-class MainViewModel(
-    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
-
-    private val context: Context,
-    private val settingsViewModel: SettingsViewModel,
-    private val openAiApiService: OpenAiApiService,
-    private val conversationRepository: IConversationRepository
-)
-fun loadInitialConversation()
-fun saveCurrentConversation()
-fun startListening()
-fun sendUserMessageToOpenAi()
-fun updateMessage()
-fun deleteMessage()
-fun startPeriodicListeningCheck()
-fun stopListening()
-fun onTriggerWordDetected()
-fun loadConversation()
-fun saveConversation()
-fun onSaveDialogConfirmed()
-fun onSaveDialogDismissed()
 ```
 
 ```MediaControls.kt
@@ -216,18 +183,6 @@ fun onFailure()
 fun onResponse()
 ```
 
-```Profile.kt
-class Profile(
-    val name: String,
-    val systemMessage: String,
-    val maxLength: Int,
-    val temperature: Double,
-    val frequencyPenalty: Double,
-    val presencePenalty: Double,
-    val model: String
-)
-```
-
 ```SavedConversationsScreen.kt
 fun SavedConversationsScreen()
 fun CardElevation()
@@ -241,6 +196,34 @@ class SavedConversationsViewModel(
 )
 fun loadSavedConversations()
 fun deleteConversation()
+```
+
+```SessionScreen.kt
+fun SessionScreen()
+```
+
+```SessionViewModel.kt
+class SessionViewModel(
+    val conversationId: UUID?,
+    val context: Context,
+    val settingsViewModel: SettingsViewModel,
+    val openAiApiService: OpenAiApiService,
+    val conversationRepository: IConversationRepository,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?
+)
+fun loadInitialConversation()
+fun saveCurrentConversation()
+fun startListening()
+fun sendUserMessageToOpenAi()
+fun updateMessage()
+fun deleteMessage()
+fun startPeriodicListeningCheck()
+fun stopListening()
+fun onTriggerWordDetected()
+fun loadConversation()
+fun saveConversation()
+fun onSaveDialogConfirmed()
+fun onSaveDialogDismissed()
 ```
 
 ```SettingsScreen.kt
@@ -287,6 +270,26 @@ fun onEvent()
 fun processResults()
 ```
 
+```AndroidMediaPlaybackManager.kt
+class AndroidMediaPlaybackManager()
+fun seekForward()
+fun seekBackward()
+fun pause()
+fun isPlaying()
+fun playAudio()
+fun start()
+fun pause()
+fun getDuration()
+fun getCurrentPosition()
+fun getBufferPercentage()
+fun isPlaying()
+fun seekTo()
+fun canPause()
+fun getAudioSessionId()
+fun canSeekBackward()
+fun canSeekForward()
+```
+
 ```Color.kt
 
 ```
@@ -297,6 +300,12 @@ fun HelloworldTheme()
 
 ```Type.kt
 
+```
+
+```UmlGenerator.kt
+class diagram()
+fun mains()
+fun generateUml()
 ```
 
 

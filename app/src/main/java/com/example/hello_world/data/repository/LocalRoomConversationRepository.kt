@@ -1,11 +1,14 @@
-package com.example.hello_world
+package com.example.hello_world.data.repository
 
-import com.example.hello_world.models.Conversation
 import com.example.hello_world.models.ConversationMessage
-import Profile
+import com.example.hello_world.models.ConfigPack
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
+import com.example.hello_world.data.local.database.LocalConversationDatabase
+import com.example.hello_world.data.local.entities.LocalConversationEntity
+import com.example.hello_world.data.local.entities.LocalConversationMessageEntity
+import com.example.hello_world.models.Conversation
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
@@ -19,11 +22,11 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     override suspend fun saveConversation(conversation: Conversation) {
         Log.d("LocalRoomRepo", "Saving conversation with ID: ${conversation.id}")
-        val profileJson = moshi.adapter(Profile::class.java).toJson(conversation.profile)
+        val configPackJson = moshi.adapter(ConfigPack::class.java).toJson(conversation.configPack)
         withContext(Dispatchers.IO) {
             val conversationEntity = LocalConversationEntity(
                 id = conversation.id.toString(),
-                profileJson = profileJson,
+                profileJson = configPackJson,
                 createdAt = conversation.createdAt,
                 title = conversation.title,
                 dateStarted = conversation.dateStarted,
@@ -47,12 +50,12 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
         return withContext(Dispatchers.IO) {
             val conversationEntity = conversationDao.getConversation(conversationId.toString())
             val messageEntities = conversationDao.getMessages(conversationId.toString())
-            val profile = moshi.adapter(Profile::class.java).fromJson(conversationEntity?.profileJson)
-            if (conversationEntity != null && profile != null) {
-                val profile = moshi.adapter(Profile::class.java).fromJson(conversationEntity.profileJson)
-                profile?.let {
+            val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity?.profileJson)
+            if (conversationEntity != null && configPack != null) {
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity.profileJson)
+                configPack?.let {
                     val messages = messageEntities.map { entity ->
-                        com.example.hello_world.models.ConversationMessage(
+                        ConversationMessage(
                             sender = entity.sender,
                             message = entity.message,
                             audioFilePath = mutableStateOf(entity.audioFilePath)
@@ -62,7 +65,7 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
                     Conversation(
                         id = UUID.fromString(conversationEntity.id),
                         messages = messages,
-                        profile = it,
+                        configPack = it,
                         createdAt = conversationEntity.createdAt,
                         title = conversationEntity.title.orEmpty(),
                         dateStarted = conversationEntity.dateStarted,
@@ -88,12 +91,12 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
         return withContext(Dispatchers.IO) {
             val conversationEntities = conversationDao.getAllConversations()
             conversationEntities.map { entity ->
-                val profile = moshi.adapter(Profile::class.java).fromJson(entity.profileJson)
-                profile?.let {
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(entity.profileJson)
+                configPack?.let {
                     Conversation(
                         id = UUID.fromString(entity.id),
                         messages = mutableListOf(), // We don't need messages for the saved conversations list
-                        profile = it,
+                        configPack = it,
                         createdAt = entity.createdAt,
                         title = entity.title.orEmpty(),
                         dateStarted = entity.dateStarted,

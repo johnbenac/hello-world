@@ -1,0 +1,12 @@
+@startuml
+class ElevenLabsTextToSpeechService {
+    private apiKey: String
+    private voiceId: String
+    private context: Context
+    override mediaPlaybackManager: MediaPlaybackManager
+    override renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
+    override getAudioFilePath(): String
+    private createTtsRequestBody(text: String): RequestBody
+    private buildTtsRequest(requestBody: RequestBody): Request
+}
+@enduml

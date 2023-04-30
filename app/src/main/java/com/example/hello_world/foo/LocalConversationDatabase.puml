@@ -1,0 +1,6 @@
+@startuml
+class LocalConversationDatabase {
+    abstract conversationDao(): LocalConversationDao
+    + getInstance(context: Context): LocalConversationDatabase
+}
+@enduml

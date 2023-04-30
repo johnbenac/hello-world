@@ -1,7 +1,6 @@
 package com.example.hello_world
 
 import EditSettingsScreen
-import android.content.Context
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,7 +19,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.hello_world.services.AndroidMediaPlaybackManager
+import com.example.hello_world.data.repository.LocalRoomConversationRepository
+import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManager
+import com.example.hello_world.services.speech_to_text.VoiceTriggerDetector
+import com.example.hello_world.services.text_to_speech.AndroidTextToSpeechService
+import com.example.hello_world.services.text_to_speech.TextToSpeechService
+import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
+import com.example.hello_world.ui.session.viewmodel.SessionViewModel
+import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
 import java.util.UUID
 
 @ExperimentalMaterial3Api
@@ -39,7 +45,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "log: MainActivity opened")
         super.onCreate(savedInstanceState)
         requestAudioPermission()
-        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
+        val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(
+            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
         val conversationRepository = LocalRoomConversationRepository(this)
         openAiApiService = OpenAiApiService("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", settingsViewModel)
         sessionViewModel = SessionViewModel(

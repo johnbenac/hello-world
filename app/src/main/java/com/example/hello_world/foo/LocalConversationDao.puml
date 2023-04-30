@@ -1,0 +1,8 @@
+@startuml
+class LocalConversationDao {
+    <<Interface>>
+    suspend getConversation(conversationId: String): LocalConversationEntity
+    suspend getMessages(conversationId: String): List<LocalConversationMessageEntity>
+    suspend getAllConversations(): List<LocalConversationEntity>
+}
+@enduml

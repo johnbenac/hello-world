@@ -1,0 +1,8 @@
+@startuml
+class TextToSpeechService {
+    <<Interface>>
+    + mediaPlaybackManager: MediaPlaybackManager
+    + renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
+    + getAudioFilePath(): String
+}
+@enduml

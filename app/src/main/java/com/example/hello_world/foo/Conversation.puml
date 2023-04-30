@@ -1,0 +1,13 @@
+@startuml
+class Conversation {
+    <<Data Class>>
+    + id: UUID
+    + messages: MutableList<ConversationMessage>
+    + configPack: ConfigPack
+    + createdAt: Long
+    + title: String
+    + dateStarted: Long
+    + dateLastSaved: Long
+    + messageCount: Int
+}
+@enduml

@@ -1,0 +1,12 @@
+@startuml
+class SessionViewModel {
+    + conversationId: UUID?
+    + context: Context
+    + settingsViewModel: SettingsViewModel
+    + openAiApiService: OpenAiApiService
+    + conversationRepository: IConversationRepository
+    + mediaPlaybackManager: MediaPlaybackManager
+    + isAppSpeaking: Boolean
+    + isListening: Boolean
+}
+@enduml

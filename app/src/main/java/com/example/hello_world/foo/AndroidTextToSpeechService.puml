@@ -1,0 +1,8 @@
+@startuml
+class AndroidTextToSpeechService {
+    private context: Context
+    override mediaPlaybackManager: MediaPlaybackManager
+    override renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
+    override getAudioFilePath(): String
+}
+@enduml

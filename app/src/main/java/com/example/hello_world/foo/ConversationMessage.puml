@@ -1,0 +1,8 @@
+@startuml
+class ConversationMessage {
+    <<Data Class>>
+    + sender: String
+    + message: String
+    + audioFilePath: MutableState<String>
+}
+@enduml

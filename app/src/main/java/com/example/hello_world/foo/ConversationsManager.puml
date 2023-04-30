@@ -1,0 +1,7 @@
+@startuml
+class ConversationsManager {
+    private conversationRepository: IConversationRepository
+    suspend loadConversation(conversationId: UUID): Conversation
+    suspend loadAllConversations(): List<Conversation>
+}
+@enduml

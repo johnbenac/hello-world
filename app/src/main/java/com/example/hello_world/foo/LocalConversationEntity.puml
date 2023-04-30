@@ -1,0 +1,12 @@
+@startuml
+class LocalConversationEntity {
+    <<Data Class>>
+    + id: String
+    + profileJson: String
+    + createdAt: Long
+    + title: String?
+    + dateStarted: Long
+    + dateLastSaved: Long
+    + messageCount: Int
+}
+@enduml

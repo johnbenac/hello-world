@@ -1,0 +1,10 @@
+@startuml
+class LocalConversationMessageEntity {
+    <<Data Class>>
+    + id: Int
+    + conversationId: String
+    + sender: String
+    + message: String
+    + audioFilePath: String
+}
+@enduml

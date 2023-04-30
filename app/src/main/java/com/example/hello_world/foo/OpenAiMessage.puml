@@ -1,0 +1,19 @@
+@startuml
+class OpenAiMessage {
+    <<Data Class>>
+    + role: String
+    + content: String
+    + messages: List<OpenAiMessage>
+    + temperature: Double
+    + max_tokens: Int
+    + top_p: Int
+    + frequency_penalty: Double
+    + presence_penalty: Double
+    + model: String
+    + stream: Boolean
+    private apiKey: String
+    private settingsViewModel: SettingsViewModel
+    private timeoutInSeconds: Long
+    suspend sendMessage(conversationHistory: List<ConversationMessage>): String
+}
+@enduml

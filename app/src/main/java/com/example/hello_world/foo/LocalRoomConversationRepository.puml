@@ -1,0 +1,6 @@
+@startuml
+class LocalRoomConversationRepository {
+    suspend loadConversation(conversationId: UUID): Conversation
+    suspend loadAllConversations(): List<Conversation>
+}
+@enduml

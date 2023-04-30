@@ -1,0 +1,9 @@
+@startuml
+class OpenAiApiResponse {
+    <<Data Class>>
+    + choices: List<OpenAiApiChoice>
+    + message: OpenAiApiMessage
+    + role: String
+    + content: String
+}
+@enduml

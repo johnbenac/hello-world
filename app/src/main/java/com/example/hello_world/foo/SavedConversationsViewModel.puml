@@ -1,0 +1,7 @@
+@startuml
+class SavedConversationsViewModel {
+    private conversationRepository: IConversationRepository
+    + savedConversations: StateFlow<List<Conversation>>
+    suspend loadSavedConversations(): List<Conversation>
+}
+@enduml

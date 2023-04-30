@@ -1,0 +1,12 @@
+@startuml
+class ConfigPack {
+    <<Data Class>>
+    + name: String
+    + systemMessage: String
+    + maxLength: Int
+    + temperature: Double
+    + frequencyPenalty: Double
+    + presencePenalty: Double
+    + model: String
+}
+@enduml

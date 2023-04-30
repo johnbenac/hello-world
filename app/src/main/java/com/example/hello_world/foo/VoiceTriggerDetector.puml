@@ -1,0 +1,9 @@
+@startuml
+class VoiceTriggerDetector {
+    private context: Context
+    private triggerWord: String
+    private mainHandler: Handler
+    private latestPartialResult: MutableState<String?>
+    private speechRecognizer: SpeechRecognizer
+}
+@enduml

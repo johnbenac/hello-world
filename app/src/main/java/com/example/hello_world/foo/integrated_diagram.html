@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mermaid/8.13.5/mermaid.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/8.13.5/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mermaid">
+classDiagram
+    %% Package: com.example.hello_world
+    class ConversationManager {
+        + conversation: Conversation
+    }
+    %% Package: com.example.hello_world
+    class ConversationsManager {
+        private conversationRepository: IConversationRepository
+    }
+    %% Package: com.example.hello_world
+    class MainActivity {
+        &lt;&lt;ExperimentalMaterial3Api&gt;&gt;
+        private textToSpeechService: TextToSpeechService?
+        lateinit voiceTriggerDetector: VoiceTriggerDetector
+        lateinit openAiApiService: OpenAiApiService
+        lateinit sessionViewModel: SessionViewModel
+    }
+    %% Package: data.local.dao
+    class LocalConversationDao {
+        &lt;&lt;Interface&gt;&gt;
+        &lt;&lt;Dao&gt;&gt;
+        &lt;&lt;Insert&gt;&gt;
+        &lt;&lt;Insert&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+        &lt;&lt;Transaction&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+    }
+    %% Package: data.local.database
+    class LocalConversationDatabase {
+        &lt;&lt;Database&gt;&gt;
+        &lt;&lt;Volatile&gt;&gt;
+        private INSTANCE: LocalConversationDatabase?
+    }
+    %% Package: data.local.entities
+    class LocalConversationEntity {
+        &lt;&lt;Data Class&gt;&gt;
+        &lt;&lt;Entity&gt;&gt;
+        &lt;&lt;PrimaryKey&gt;&gt;
+        + id: String
+        + profileJson: String
+        + createdAt: Long
+        + title: String?
+        + dateStarted: Long
+        + dateLastSaved: Long
+        + messageCount: Int
+    }
+    %% Package: data.local.entities
+    class LocalConversationMessageEntity {
+        &lt;&lt;Data Class&gt;&gt;
+        &lt;&lt;Entity&gt;&gt;
+        &lt;&lt;PrimaryKey&gt;&gt;
+        + id: Int
+        + conversationId: String
+        + sender: String
+        + message: String
+        + audioFilePath: String
+    }
+    %% Package: hello_world.data.repository
+    class IConversationRepository {
+        &lt;&lt;Interface&gt;&gt;
+    }
+    %% Package: hello_world.data.repository
+    class LocalRoomConversationRepository {
+    }
+    %% Package: example.hello_world.models
+    class ConfigPack {
+        &lt;&lt;Data Class&gt;&gt;
+        + name: String
+        + systemMessage: String
+        + maxLength: Int
+        + temperature: Double
+        + frequencyPenalty: Double
+        + presencePenalty: Double
+        + model: String
+    }
+    %% Package: example.hello_world.models
+    class Conversation {
+        &lt;&lt;Data Class&gt;&gt;
+        + id: UUID
+        + messages: MutableList&lt;ConversationMessage&gt;
+        + configPack: ConfigPack
+        + createdAt: Long
+        + title: String
+        + dateStarted: Long
+        + dateLastSaved: Long
+        + messageCount: Int
+    }
+    %% Package: example.hello_world.models
+    class ConversationMessage {
+        &lt;&lt;Data Class&gt;&gt;
+        + sender: String
+        + message: String
+        + audioFilePath: MutableState&lt;String&gt;
+    }
+    %% Package: example.hello_world.models
+    class OpenAiApiResponse {
+        &lt;&lt;Data Class&gt;&gt;
+        + choices: List&lt;OpenAiApiChoice&gt;
+        + message: OpenAiApiMessage
+        + role: String
+        + content: String
+    }
+    %% Package: hello_world.services.AI_Predictive
+    class OpenAiMessage {
+        &lt;&lt;Data Class&gt;&gt;
+        + role: String
+        + content: String
+        + messages: List&lt;OpenAiMessage&gt;
+        + temperature: Double
+        + max_tokens: Int
+        + top_p: Int
+        + frequency_penalty: Double
+        + presence_penalty: Double
+        + model: String
+        + stream: Boolean
+        private apiKey: String
+        private settingsViewModel: SettingsViewModel
+        private timeoutInSeconds: Long
+    }
+    %% Package: hello_world.services.media_playback
+    class AndroidMediaPlaybackManager {
+        + mediaPlayer: MediaPlayer?
+        private mediaController: MediaController?
+        private currentFilePath: String?
+        private playbackPosition: Int
+    }
+    %% Package: hello_world.services.media_playback
+    class MediaPlaybackManager {
+        &lt;&lt;Interface&gt;&gt;
+    }
+    %% Package: hello_world.services.speech_to_text
+    class VoiceTriggerDetector {
+        private context: Context
+        private triggerWord: String
+        private mainHandler: Handler
+        private latestPartialResult: MutableState&lt;String?&gt;
+        private speechRecognizer: SpeechRecognizer
+        private keepListening: Boolean
+    }
+    %% Package: hello_world.services.text_to_speech
+    class AndroidTextToSpeechService {
+        private context: Context
+        override mediaPlaybackManager: MediaPlaybackManager
+        private lastGeneratedAudioFilePath: String?
+        private textToSpeech: TextToSpeech
+    }
+    %% Package: hello_world.services.text_to_speech
+    class ElevenLabsTextToSpeechService {
+        private apiKey: String
+        private voiceId: String
+        private context: Context
+        override mediaPlaybackManager: MediaPlaybackManager
+        private lastGeneratedAudioFilePath: String?
+    }
+    %% Package: hello_world.services.text_to_speech
+    class TextToSpeechService {
+        &lt;&lt;Interface&gt;&gt;
+        + mediaPlaybackManager: MediaPlaybackManager
+    }
+    %% Package: ui.home.viewmodel
+    class HomeViewModel {
+    }
+    %% Package: ui.saved_conversations.viewmodel
+    class SavedConversationsViewModel {
+        private conversationRepository: IConversationRepository
+        + savedConversations: StateFlow&lt;List&lt;Conversation&gt;&gt;
+    }
+    %% Package: ui.session.viewmodel
+    class SessionViewModel {
+        + conversationId: UUID?
+        + context: Context
+        + settingsViewModel: SettingsViewModel
+        + openAiApiService: OpenAiApiService
+        + conversationRepository: IConversationRepository
+        + textToSpeechServiceState: MutableState&lt;TextToSpeechService&gt;?
+        + mediaPlaybackManager: MediaPlaybackManager
+        + isAppSpeaking: Boolean
+        + isListening: Boolean
+    }
+    %% Package: ui.settings.viewmodel
+    class SettingsViewModel {
+    }
+    %% Package: example.hello_world.utils
+    class diagram {
+        &lt;&lt;ExperimentalMaterial3Api&gt;&gt;
+        &lt;&lt;Composable&gt;&gt;
+        &lt;&lt;ExperimentalMaterial3Api&gt;&gt;
+        &lt;&lt;Composable&gt;&gt;
+    }
+    ConversationManager --> Conversation : association
+    ConversationsManager --> IConversationRepository : association
+    ConversationsManager --> Conversation : dependency
+    ConversationsManager --> Conversation : realization
+    MainActivity --> AppCompatActivity : inheritance
+    MainActivity --> AppCompatActivity : interface
+    MainActivity --> VoiceTriggerDetector : association
+    MainActivity --> SessionViewModel : association
+    LocalConversationDao --> LocalConversationEntity : dependency
+    LocalConversationDao --> LocalConversationEntity : realization
+    LocalConversationDatabase --> RoomDatabase : inheritance
+    LocalConversationDatabase --> RoomDatabase : interface
+    LocalConversationDatabase --> LocalConversationDao : dependency
+    LocalConversationDatabase --> LocalConversationDao : realization
+    LocalConversationDatabase --> LocalConversationDatabase : dependency
+    LocalConversationDatabase --> LocalConversationDatabase : realization
+    IConversationRepository --> Conversation : dependency
+    IConversationRepository --> Conversation : realization
+    LocalRoomConversationRepository --> Conversation : dependency
+    LocalRoomConversationRepository --> Conversation : realization
+    Conversation --> ConfigPack : association
+    OpenAiMessage --> SettingsViewModel : association
+    AndroidMediaPlaybackManager --> MediaPlaybackManager : inheritance
+    AndroidMediaPlaybackManager --> MediaPlaybackManager : interface
+    AndroidTextToSpeechService --> MediaPlaybackManager : association
+    ElevenLabsTextToSpeechService --> MediaPlaybackManager : association
+    TextToSpeechService --> MediaPlaybackManager : association
+    HomeViewModel --> ViewModel : inheritance
+    HomeViewModel --> ViewModel : interface
+    SavedConversationsViewModel --> IConversationRepository : association
+    SessionViewModel --> SettingsViewModel : association
+    SessionViewModel --> IConversationRepository : association
+    SessionViewModel --> MediaPlaybackManager : association
+    SettingsViewModel --> ViewModel : inheritance
+    SettingsViewModel --> ViewModel : interface
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true
+        });
+    </script>
+</body>
+</html>

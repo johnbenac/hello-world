@@ -1,0 +1,6 @@
+@startuml
+class MediaPlaybackManager {
+    <<Interface>>
+    + isPlaying(): Boolean
+}
+@enduml
