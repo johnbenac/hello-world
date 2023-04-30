@@ -3,12 +3,11 @@ setlocal enabledelayedexpansion
 set "prefix=You are a senior app developer, helping me, a junior apprentice coder. We are working together on building an alpha build iteratively into a minimum viable product. The app uses the phone microphone to listen to the user, sends their messages to openAI chat API endpoint probably using a trigger word) and then do an audio playback of the response from openAI:"
 
 echo %prefix% > build.txt
-for %%f in (*.kt) do (
+for /r %%f in (*.kt) do (
     echo. >> build.txt
-    echo ```%%f``` >> build.txt
+    echo `%%~nf` >> build.txt
     echo. >> build.txt
     type "%%f" >> build.txt
     echo. >> build.txt
     echo ``` >> build.txt
-    echo. >> build.txt
 )
