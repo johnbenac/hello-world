@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.runtime.MutableState
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.hello_world.managers.ConversationManager
 import com.example.hello_world.managers.ConversationsManager
@@ -27,7 +28,7 @@ import com.example.hello_world.withExponentialBackoff
 
 
 class SessionViewModel(
-    val conversationId: UUID?,
+    var conversationId: UUID?,
     val context: Context,
     val settingsViewModel: SettingsViewModel,
     val openAiApiService: OpenAiApiService,
@@ -57,19 +58,27 @@ class SessionViewModel(
 
 
     fun loadInitialConversation(conversationId: UUID? = null) {
+        Log.d("SessionViewModel", "fun loadInitialConversation from before the `viewModelScope.launch` block, loadInitialConversation called with conversationId: $conversationId")
         viewModelScope.launch {
+            Log.d("SessionViewModel", "fun loadInitialConversation from within the `viewModelScope.launch` block, loadInitialConversation called with conversationId: $conversationId")
             val loadedConversation = if (conversationId != null) {
                 conversationsManager.loadConversation(conversationId)
             } else {
                 null
             }
             if (loadedConversation != null) {
+                Log.d("SessionViewModel", "fun loadInitialConversation Loaded conversation: $loadedConversation")
                 conversationManager.conversation = loadedConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
             } else {
                 // Use the default profile for the initial conversation
                 val initialConversation = Conversation(configPack = ConfigPack.defaultConfigPack)
                 conversationManager.conversation = initialConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
             }
+            Log.d("SessionViewModel", "fun loadInitialConversation conversationMessages after loadInitialConversation: $conversationMessages")
         }
     }
 
@@ -83,7 +92,7 @@ class SessionViewModel(
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
-        Log.d("MainViewModel", "log: from within the startListening() function, `voiceTriggerDetector.startListening()` and `_isListening.value = true` were just called.")
+        Log.d("SessionViewModel", "fun startListening startListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
 
@@ -105,8 +114,7 @@ class SessionViewModel(
                 sendUserMessageToOpenAi(userMessage)
             }
         }) ?: return
-        Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
-//        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
+        Log.d("SessionViewModel", "Received response from OpenAI API: $responseText")
 
 
         val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
@@ -118,15 +126,14 @@ class SessionViewModel(
             mainHandler.post {
                 _isAppSpeaking.value = false
                 startListening()
-                Log.d("MainViewModel", "log: startListening called associated with onFinish")
+                Log.d("SessionViewModel", "log: startListening called associated with onFinish")
             }
         }}, onStart = {
             mainHandler.post {
                 stopListening()
-                Log.d("MainViewModel", "log: stopListening called associated with onStart")
+                Log.d("SessionViewModel", "log: stopListening called associated with onStart")
             }
         }, audioFilePathState = conversationManager.conversation.messages.last().audioFilePath)
-//        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
         _isAppSpeaking.value = true
     }
 
@@ -144,7 +151,7 @@ class SessionViewModel(
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
             if (_isListening.value && _isAppSpeaking.value) {
-                Log.d("MainViewModel", "log: Periodic check - Restarting listening")
+                Log.d("SessionViewModel", "log: Periodic check - Restarting listening, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
                 startListening()
             }
             startPeriodicListeningCheck()
@@ -153,17 +160,17 @@ class SessionViewModel(
 
     fun stopListening() {
         voiceTriggerDetector.stopListening()
-        Log.d("MainViewModel", "log: stopListening called 2")
+        Log.d("SessionViewModel", "stopListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
         _isListening.value = false
     }
 
-    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
+    fun onTriggerWordDetected(userMessage: String) {
         // Add user message to the conversation state
-        Log.d("MainViewModel", "log: onTriggerWordDetected called")
+        Log.d("SessionViewModel", "log: onTriggerWordDetected called")
 
         // Stop listening
-        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
-        Log.d("MainViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called")
+        voiceTriggerDetector.stopListening()
+        Log.d("SessionViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
 
         // Send the user message to OpenAI API and process the response
         viewModelScope.launch {
@@ -172,21 +179,21 @@ class SessionViewModel(
     }
 
     fun loadConversation(conversationId: UUID) {
+    Log.d("SessionViewModel", "fun loadConversation Loaded conversation ID: ${conversationId}")
         viewModelScope.launch {
-            val loadedConversation = conversationsManager.loadConversation(conversationId)
-            if (loadedConversation != null) {
-                conversationManager.conversation = loadedConversation
-                conversationMessages.clear()
-                conversationMessages.addAll(conversationManager.conversation.messages)
-                Log.d("SessionViewModel", "Loaded conversation ID: ${loadedConversation.id}")
-                Log.d("SessionViewModel", "Number of messages in loaded conversation: ${loadedConversation.messages.size}")
-                Log.d("SessionViewModel", "Messages in loaded conversation: ${loadedConversation.messages}")
-            }
+            loadInitialConversation(conversationId)
         }
     }
+
     init {
+        Log.d("SessionViewModel", "init about to run `loadInitialConversation(conversationId)`")
         loadInitialConversation(conversationId)
         startPeriodicListeningCheck()
+    }
+
+    fun loadConversationWithId(conversationId: UUID) {
+        this.conversationId = conversationId
+        loadInitialConversation()
     }
 
 
@@ -209,5 +216,30 @@ class SessionViewModel(
     fun onSaveDialogDismissed() {
         showSaveDialog.value = false
         saveDialogTitle.value = ""
+    }
+}
+
+class SessionViewModelFactory(
+    private val conversationId: UUID?,
+    private val context: Context,
+    private val settingsViewModel: SettingsViewModel,
+    private val openAiApiService: OpenAiApiService,
+    private val conversationRepository: IConversationRepository,
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+    private val snackbarHostState: SnackbarHostState
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(SessionViewModel::class.java)) {
+            return SessionViewModel(
+                conversationId,
+                context,
+                settingsViewModel,
+                openAiApiService,
+                conversationRepository,
+                textToSpeechServiceState,
+                snackbarHostState
+            ) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

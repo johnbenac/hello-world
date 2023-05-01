@@ -21,6 +21,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -46,23 +47,28 @@ fun SessionScreen(
     navController: NavController,
     snackbarHostState: SnackbarHostState
 ) {
-    LaunchedEffect(sessionViewModel) {
+    DisposableEffect(Unit) {
+
+        Log.d("SessionScreen", "sessionViewModel.conversationId: ${sessionViewModel.conversationId}")
         sessionViewModel.conversationId?.let {
+            Log.d("SessionScreen", "Before `sessionViewModel.loadConversation(it)` within the sessionViewModel.conversationId?.let {/.../} block ")
             sessionViewModel.loadConversation(it)
+            Log.d("SessionScreen", "After `sessionViewModel.loadConversation(it)` within the sessionViewModel.conversationId?.let {/.../} block ")
         }
+        onDispose { }
     }
-    val context = LocalContext.current // Get the current context
+    val context = LocalContext.current
     val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
     val conversationTextState = remember { mutableStateOf("") }
-    BoxWithConstraints( // Create a box with constraints to get the maximum height of the screen
-        modifier = Modifier // Set the modifier for the box
-            .fillMaxSize() // Make the box fill the entire screen
-            .padding(16.dp) // Add padding to the box
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
 
-        val lazyListState = rememberLazyListState() // Create a lazy list state for the lazy column
+        val lazyListState = rememberLazyListState()
 
-        val messages = sessionViewModel.conversationMessages // Get the conversation messages
+        val messages = sessionViewModel.conversationMessages
         Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
         LaunchedEffect(Unit) {
             if (scrollToBottomClicked.value) {
@@ -76,14 +82,14 @@ fun SessionScreen(
             }
             Log.d("SessionScreen", "Current messages in session screen: $messages")
         }
-        val maxHeight = constraints.maxHeight // Get the maximum height of the screen
-        Column(modifier = Modifier.fillMaxSize()) { // Create a column for the main screen
-            LazyColumn( // Create a lazy column for the messages
-                modifier = Modifier // Set the modifier for the lazy column
-                    .weight(1f) // Make the lazy column fill the entire screen
+        val maxHeight = constraints.maxHeight
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
                     .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) // Set the height of the lazy column to the maximum height of the screen minus the height of the buttons
             ) {
-                items(messages) { message -> // For each message in the conversation messages
+                items(messages) { message ->
                     MessageCard(
                         message = message,
                         onPlayAudio = { audioFilePath ->
@@ -95,57 +101,56 @@ fun SessionScreen(
                         mediaPlaybackManager = mediaPlaybackManager,
                         context = context,
                         onDeleteClicked = {
-                            // Log the delete action and message index
                             Log.d("SessionScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
-                            // Call the deleteMessage method from MainViewModel
                             sessionViewModel.deleteMessage(messages.indexOf(message))
                         },
                         onEditClicked = { message, editedMessage ->
                             val index = messages.indexOf(message)
                             sessionViewModel.updateMessage(index, message.copy(message = editedMessage))
-                            // Log the edit action and message index
                             Log.d("SessionScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
                         }
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the messages and the buttons
-            Text( // Show the listening status
-                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",  // Show "Listening..." if the app is listening and "Not Listening" if the app is not listening
-                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the text to the center horizontally
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
-            Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the listening status and the buttons
+            Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { // When the start listening button is pressed
-                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) { // If the text to speech service is the Android text to speech service
-                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { sessionViewModel.startListening() }  // Set the text to speech service to the Eleven Labs text to speech service
-                    } else { // If the text to speech service is not the Android text to speech service
-                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { sessionViewModel.startListening() } // Set the text to speech service to the Android text to speech service
-                    }
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
-            ) {
-                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS") // Show "Use Eleven Labs TTS" if the text to speech service is the Android text to speech service and "Use Google TTS" if the text to speech service is not the Android text to speech service
-            }
-            Button( // Create a button for the start listening button
-                onClick = { // When the start listening button is pressed
-                    if (sessionViewModel.isListening) {  // If the app is listening
-                        Log.d("SessionScreen", "Stop Listening button clicked")  // Log that the stop listening button was clicked
-                        sessionViewModel.stopListening() // Stop listening
+                onClick = {
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) {
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { sessionViewModel.startListening() }
                     } else {
-                        Log.d("SessionScreen", "Start Listening button clicked") // Log that the start listening button was clicked
-                        sessionViewModel.startListening() // Start listening
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { sessionViewModel.startListening() }
                     }
                 },
-                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")  // Show "Stop Listening" if the app is listening and "Start Listening" if the app is not listening
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS")
             }
-            Button( // Create a button for the settings button
-                onClick = onSettingsClicked, // When the settings button is pressed
-                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
+            Button(
+                onClick = {
+                    if (sessionViewModel.isListening) {
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.stopListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                    } else {
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.startListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text("Settings") // Show "Settings"
+                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")
+            }
+            Button(
+                onClick = onSettingsClicked,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Settings")
             }
             Button(
                 onClick = {
