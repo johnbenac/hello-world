@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
+
 set "prefix=this is the codebase:"
 set "skipDirs=utils ui/theme"
 
@@ -55,3 +56,4 @@ echo Files processed: %fileCount%
 echo Output file location: "%outputFile%"
 echo Output file line count: %lineCount%
 pause
+
