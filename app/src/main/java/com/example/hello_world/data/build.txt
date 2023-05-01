@@ -1,0 +1,232 @@
+this is the codebase: 
+ 
+```LocalConversationDao.kt    
+ 
+package com.example.hello_world.data.local.dao
+
+
+@Dao
+interface LocalConversationDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConversation(conversation: LocalConversationEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: LocalConversationMessageEntity)
+
+    @Query("SELECT * FROM conversations WHERE id = :conversationId")
+    suspend fun getConversation(conversationId: String): LocalConversationEntity?
+
+    @Query("SELECT * FROM conversation_messages WHERE conversationId = :conversationId")
+    suspend fun getMessages(conversationId: String): List<LocalConversationMessageEntity>
+
+    @Transaction
+    suspend fun saveConversation(conversation: LocalConversationEntity, messages: List<LocalConversationMessageEntity>) {
+        insertConversation(conversation)
+        messages.forEach { insertMessage(it) }
+    }
+
+    @Query("SELECT * FROM conversations")
+    suspend fun getAllConversations(): List<LocalConversationEntity>
+
+    @Query("DELETE FROM conversations WHERE id = :conversationId")
+    suspend fun deleteConversation(conversationId: String)
+
+    @Query("DELETE FROM conversation_messages WHERE conversationId = :conversationId")
+    suspend fun deleteMessages(conversationId: String)
+ 
+``` 
+ 
+ 
+```LocalConversationDatabase.kt    
+ 
+package com.example.hello_world.data.local.database
+
+
+@Database(
+    entities = [LocalConversationEntity::class, LocalConversationMessageEntity::class],
+    version = 2,
+    exportSchema = false
+)
+abstract class LocalConversationDatabase : RoomDatabase() {
+    abstract fun conversationDao(): LocalConversationDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: LocalConversationDatabase? = null
+
+        fun getInstance(context: Context): LocalConversationDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    LocalConversationDatabase::class.java,
+                    "conversation_database"
+                ).build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+ 
+``` 
+ 
+ 
+```LocalConversationEntity.kt    
+ 
+package com.example.hello_world.data.local.entities
+
+
+@Entity(tableName = "conversations")
+data class LocalConversationEntity(
+    @PrimaryKey
+    val id: String,
+    val profileJson: String,
+    val createdAt: Long,
+    val title: String?,
+    val dateStarted: Long,
+    val dateLastSaved: Long,
+    val messageCount: Int
+ 
+``` 
+ 
+ 
+```LocalConversationMessageEntity.kt    
+ 
+package com.example.hello_world.data.local.entities
+
+
+@Entity(
+    tableName = "conversation_messages",
+    foreignKeys = [
+        ForeignKey(
+            entity = LocalConversationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["conversationId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class LocalConversationMessageEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    val conversationId: String,
+    val sender: String,
+    val message: String,
+    val audioFilePath: String
+ 
+``` 
+ 
+ 
+```IConversationRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface IConversationRepository {
+    suspend fun saveConversation(conversation: Conversation)
+    suspend fun loadConversation(conversationId: UUID): Conversation?
+    suspend fun deleteConversation(conversationId: UUID)
+    suspend fun loadAllConversations(): List<Conversation>
+ 
+``` 
+ 
+ 
+```LocalRoomConversationRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+
+
+class LocalRoomConversationRepository(context: Context) : IConversationRepository {
+    private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    override suspend fun saveConversation(conversation: Conversation) {
+        Log.d("LocalRoomRepo", "Saving conversation with ID: ${conversation.id}")
+        val configPackJson = moshi.adapter(ConfigPack::class.java).toJson(conversation.configPack)
+        withContext(Dispatchers.IO) {
+            val conversationEntity = LocalConversationEntity(
+                id = conversation.id.toString(),
+                profileJson = configPackJson,
+                createdAt = conversation.createdAt,
+                title = conversation.title,
+                dateStarted = conversation.dateStarted,
+                dateLastSaved = conversation.dateLastSaved,
+                messageCount = conversation.messages.size
+            )
+            val messageEntities = conversation.messages.map { message ->
+                LocalConversationMessageEntity(
+                    conversationId = conversation.id.toString(),
+                    sender = message.sender,
+                    message = message.message,
+                    audioFilePath = message.audioFilePath.value
+                )
+            }
+            conversationDao.saveConversation(conversationEntity, messageEntities)
+        }
+    }
+
+    override suspend fun loadConversation(conversationId: UUID): Conversation? {
+        Log.d("LocalRoomRepo", "Loading conversation with ID: $conversationId")
+        return withContext(Dispatchers.IO) {
+            val conversationEntity = conversationDao.getConversation(conversationId.toString())
+            val messageEntities = conversationDao.getMessages(conversationId.toString())
+            val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity?.profileJson)
+            if (conversationEntity != null && configPack != null) {
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity.profileJson)
+                configPack?.let {
+                    val messages = messageEntities.map { entity ->
+                        ConversationMessage(
+                            sender = entity.sender,
+                            message = entity.message,
+                            audioFilePath = mutableStateOf(entity.audioFilePath)
+                        )
+                    }.toMutableList()
+
+                    Conversation(
+                        id = UUID.fromString(conversationEntity.id),
+                        messages = messages,
+                        configPack = it,
+                        createdAt = conversationEntity.createdAt,
+                        title = conversationEntity.title.orEmpty(),
+                        dateStarted = conversationEntity.dateStarted,
+                        dateLastSaved = conversationEntity.dateLastSaved,
+                        messageCount = conversationEntity.messageCount
+                    )
+                }
+            } else {
+                null
+            }
+        }
+    }
+
+    override suspend fun deleteConversation(conversationId: UUID) {
+        Log.d("LocalRoomRepo", "Deleting conversation with ID: $conversationId")
+        withContext(Dispatchers.IO) {
+            conversationDao.deleteMessages(conversationId.toString())
+            conversationDao.deleteConversation(conversationId.toString())
+        }
+    }
+
+    override suspend fun loadAllConversations(): List<Conversation> {
+        return withContext(Dispatchers.IO) {
+            val conversationEntities = conversationDao.getAllConversations()
+            conversationEntities.map { entity ->
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(entity.profileJson)
+                configPack?.let {
+                    Conversation(
+                        id = UUID.fromString(entity.id),
+                        messages = mutableListOf(), // We don't need messages for the saved conversations list
+                        configPack = it,
+                        createdAt = entity.createdAt,
+                        title = entity.title.orEmpty(),
+                        dateStarted = entity.dateStarted,
+                        dateLastSaved = entity.dateLastSaved,
+                        messageCount = entity.messageCount
+                    )
+                }
+            }.filterNotNull()
+        }
+    }
+ 
+``` 
+ 

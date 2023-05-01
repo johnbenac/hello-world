@@ -1,0 +1,34 @@
+this is the codebase: 
+ 
+```HomeScreen.kt    
+ 
+package com.example.hello_world
+
+
+@Composable
+fun HomeScreen(
+    onSessionsClicked: () -> Unit,
+    onConfigPacksClicked: () -> Unit
+) {
+    Column {
+        Button(onClick = onSessionsClicked) {
+            Text("Sessions")
+        }
+        Button(onClick = onConfigPacksClicked) {
+            Text("Config Packs")
+        }
+    }
+ 
+``` 
+ 
+ 
+```HomeViewModel.kt    
+ 
+package com.example.hello_world.ui.home.viewmodel
+
+
+class HomeViewModel : ViewModel() {
+    // Any future logic related to the home screen can be added here
+ 
+``` 
+ 

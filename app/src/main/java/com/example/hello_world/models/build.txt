@@ -1,0 +1,72 @@
+this is the codebase: 
+ 
+```ConfigPack.kt    
+ 
+package com.example.hello_world.models
+
+data class ConfigPack(
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+) {
+    companion object {
+        val defaultConfigPack = ConfigPack(
+            name = "Jake",
+            systemMessage = "I am an AI assistant named Jake.",
+            maxLength = 100,
+            temperature = 0.9,
+            frequencyPenalty = 0.0,
+            presencePenalty = 0.1,
+            model = "gpt-3.5-turbo"
+        )
+    }
+ 
+``` 
+ 
+ 
+```Conversation.kt    
+ 
+package com.example.hello_world.models
+
+data class Conversation(
+    val id: UUID = UUID.randomUUID(),
+    val messages: MutableList<ConversationMessage> = mutableListOf(),
+    val configPack: ConfigPack,
+    val createdAt: Long = System.currentTimeMillis(),
+    val title: String = "Untitled Conversation",
+    val dateStarted: Long = System.currentTimeMillis(),
+    val dateLastSaved: Long = System.currentTimeMillis(),
+    val messageCount: Int = 0
+ 
+``` 
+ 
+ 
+```ConversationMessage.kt    
+ 
+package com.example.hello_world.models
+
+
+data class ConversationMessage(
+    val sender: String,
+    val message: String,
+    val audioFilePath: MutableState<String>
+ 
+``` 
+ 
+ 
+```OpenAiApiResponse.kt    
+ 
+package com.example.hello_world
+
+data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
+
+data class OpenAiApiChoice(val message: OpenAiApiMessage)
+
+data class OpenAiApiMessage(val role: String, val content: String)
+ 
+``` 
+ 

@@ -35,9 +35,15 @@ class ElevenLabsTextToSpeechService(
                 Log.d("ElevenLabsTextToSpeechService", "onFailure called")
                 Log.e("ElevenLabsTextToSpeechService", "onFailure called: ${e.message}", e)
             }
+
             override fun onResponse(call: Call, response: Response) {
                 Log.d("ElevenLabsTextToSpeechService", "onResponse called")
-                handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState)
+                if (response.isSuccessful) {
+                    handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState)
+                } else {
+                    // Handle the unsuccessful response
+                    // ...
+                }
             }
         })
         lastGeneratedAudioFilePath = filePath

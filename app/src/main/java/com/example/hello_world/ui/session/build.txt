@@ -1,0 +1,340 @@
+this is the codebase: 
+ 
+```SessionScreen.kt    
+ 
+package com.example.hello_world
+
+
+
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
+fun SessionScreen(
+    sessionViewModel: SessionViewModel,
+    settingsViewModel: SettingsViewModel,
+    onSettingsClicked: () -> Unit,
+    textToSpeechServiceState: MutableState<TextToSpeechService>,
+    mediaPlaybackManager: MediaPlaybackManager,
+    navController: NavController
+) {
+    LaunchedEffect(sessionViewModel) {
+        sessionViewModel.conversationId?.let {
+            sessionViewModel.loadConversation(it)
+        }
+    }
+    val context = LocalContext.current // Get the current context
+    val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
+    val conversationTextState = remember { mutableStateOf("") }
+    BoxWithConstraints( // Create a box with constraints to get the maximum height of the screen
+        modifier = Modifier // Set the modifier for the box
+            .fillMaxSize() // Make the box fill the entire screen
+            .padding(16.dp) // Add padding to the box
+    ) {
+
+        val lazyListState = rememberLazyListState() // Create a lazy list state for the lazy column
+
+        val messages = sessionViewModel.conversationMessages // Get the conversation messages
+        Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
+        LaunchedEffect(Unit) {
+            if (scrollToBottomClicked.value) {
+                val targetIndex = messages.size - 1
+                try {
+                    lazyListState.animateScrollToItem(targetIndex)
+                } catch (e: Exception) {
+                    Log.e("SessionScreen", "Error while animating scroll to item", e)
+                }
+                scrollToBottomClicked.value = false
+            }
+            Log.d("SessionScreen", "Current messages in session screen: $messages")
+        }
+        val maxHeight = constraints.maxHeight // Get the maximum height of the screen
+        Column(modifier = Modifier.fillMaxSize()) { // Create a column for the main screen
+            LazyColumn( // Create a lazy column for the messages
+                modifier = Modifier // Set the modifier for the lazy column
+                    .weight(1f) // Make the lazy column fill the entire screen
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) // Set the height of the lazy column to the maximum height of the screen minus the height of the buttons
+            ) {
+                items(messages) { message -> // For each message in the conversation messages
+                    MessageCard(
+                        message = message,
+                        onPlayAudio = { audioFilePath ->
+                            sessionViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+                        },
+                        onCardClicked = {
+                            Log.d("SessionScreen", "Card with index ${messages.indexOf(message)} clicked")
+                        },
+                        mediaPlaybackManager = mediaPlaybackManager,
+                        context = context,
+                        onDeleteClicked = {
+                            // Log the delete action and message index
+                            Log.d("SessionScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
+                            // Call the deleteMessage method from MainViewModel
+                            sessionViewModel.deleteMessage(messages.indexOf(message))
+                        },
+                        onEditClicked = { message, editedMessage ->
+                            val index = messages.indexOf(message)
+                            sessionViewModel.updateMessage(index, message.copy(message = editedMessage))
+                            // Log the edit action and message index
+                            Log.d("SessionScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the messages and the buttons
+            Text( // Show the listening status
+                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",  // Show "Listening..." if the app is listening and "Not Listening" if the app is not listening
+                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the text to the center horizontally
+            )
+            Spacer(modifier = Modifier.height(16.dp)) // Add a spacer to add some space between the listening status and the buttons
+            Button(
+                onClick = { // When the start listening button is pressed
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) { // If the text to speech service is the Android text to speech service
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { sessionViewModel.startListening() }  // Set the text to speech service to the Eleven Labs text to speech service
+                    } else { // If the text to speech service is not the Android text to speech service
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { sessionViewModel.startListening() } // Set the text to speech service to the Android text to speech service
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
+            ) {
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS") // Show "Use Eleven Labs TTS" if the text to speech service is the Android text to speech service and "Use Google TTS" if the text to speech service is not the Android text to speech service
+            }
+            Button( // Create a button for the start listening button
+                onClick = { // When the start listening button is pressed
+                    if (sessionViewModel.isListening) {  // If the app is listening
+                        Log.d("SessionScreen", "Stop Listening button clicked")  // Log that the stop listening button was clicked
+                        sessionViewModel.stopListening() // Stop listening
+                    } else {
+                        Log.d("SessionScreen", "Start Listening button clicked") // Log that the start listening button was clicked
+                        sessionViewModel.startListening() // Start listening
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
+            ) {
+                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")  // Show "Stop Listening" if the app is listening and "Start Listening" if the app is not listening
+            }
+            Button( // Create a button for the settings button
+                onClick = onSettingsClicked, // When the settings button is pressed
+                modifier = Modifier.align(Alignment.CenterHorizontally) // Align the button to the center horizontally
+            ) {
+                Text("Settings") // Show "Settings"
+            }
+            Button(
+                onClick = {
+                    scrollToBottomClicked.value = true
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Scroll to Bottom")
+            }
+            Button(
+                onClick = { navController.navigate("sessions") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Saved Conversations")
+            }
+            Button(
+                onClick = { sessionViewModel.saveCurrentConversation() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Save Conversation")
+            }
+            Button(
+                onClick = {
+                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { it.message }
+                    conversationTextState.value = conversationText
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Share Conversation Text")
+            }
+        }
+    }
+ 
+``` 
+ 
+ 
+```SessionViewModel.kt    
+ 
+package com.example.hello_world.ui.session.viewmodel
+
+
+class SessionViewModel(
+    val conversationId: UUID?,
+    val context: Context,
+    val settingsViewModel: SettingsViewModel,
+    val openAiApiService: OpenAiApiService,
+    val conversationRepository: IConversationRepository,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?
+) : ViewModel() {
+
+
+    val latestPartialResult = mutableStateOf<String?>(null)
+    val _isAppSpeaking = mutableStateOf(false)
+    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
+    private val conversationsManager = ConversationsManager(conversationRepository)
+    private val conversationManager = ConversationManager(Conversation(configPack = ConfigPack.defaultConfigPack))
+    val isAppSpeaking: Boolean get() = _isAppSpeaking.value
+    val showSaveDialog = mutableStateOf(false)
+    val saveDialogTitle = mutableStateOf("")
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
+
+    val conversationMessages = mutableStateListOf<ConversationMessage>().apply {
+        addAll(conversationManager.conversation.messages)
+    }
+    private val _isListening = mutableStateOf(false)
+    val isListening: Boolean get() = _isListening.value
+
+
+    fun loadInitialConversation(conversationId: UUID? = null) {
+        viewModelScope.launch {
+            val loadedConversation = if (conversationId != null) {
+                conversationsManager.loadConversation(conversationId)
+            } else {
+                null
+            }
+            if (loadedConversation != null) {
+                conversationManager.conversation = loadedConversation
+            } else {
+                // Use the default profile for the initial conversation
+                val initialConversation = Conversation(configPack = ConfigPack.defaultConfigPack)
+                conversationManager.conversation = initialConversation
+            }
+        }
+    }
+
+
+    fun saveCurrentConversation() {
+        viewModelScope.launch {
+            conversationsManager.saveConversation(conversationManager.conversation)
+        }
+    }
+
+    fun startListening() {
+        voiceTriggerDetector.startListening()
+        _isListening.value = true
+        Log.d("MainViewModel", "log: from within the startListening() function, `voiceTriggerDetector.startListening()` and `_isListening.value = true` were just called.")
+    }
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+
+
+        stopListening()
+        val audioFilePathState = mutableStateOf("")
+        // Add user message to the conversation state
+
+
+        val userMessageObj = ConversationMessage("User", userMessage, audioFilePathState)
+        conversationManager.addMessage(userMessageObj)
+        conversationMessages.add(userMessageObj)
+
+
+        val responseText = openAiApiService.sendMessage(conversationManager.conversation.messages)
+        Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
+//        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
+
+
+        val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
+        conversationManager.addMessage(assistantMessageObj)
+        conversationMessages.add(assistantMessageObj)
+
+        textToSpeechServiceState?.value?.renderSpeech(responseText.replace("\n", " "), onFinish = {
+            if (conversationManager.conversation.messages.isNotEmpty()) {
+            mainHandler.post {
+                _isAppSpeaking.value = false
+                startListening()
+                Log.d("MainViewModel", "log: startListening called associated with onFinish")
+            }
+        }}, onStart = {
+            mainHandler.post {
+                stopListening()
+                Log.d("MainViewModel", "log: stopListening called associated with onStart")
+            }
+        }, audioFilePathState = conversationManager.conversation.messages.last().audioFilePath)
+//        Log.d("MainViewModel", "Updated audioFilePathState: ${audioFilePathState.value}")
+        _isAppSpeaking.value = true
+    }
+
+    fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
+        conversationManager.updateMessage(index, updatedMessage)
+        conversationMessages[index] = updatedMessage
+    }
+
+    fun deleteMessage(index: Int) {
+        viewModelScope.launch {
+            conversationManager.deleteMessage(index)
+            conversationMessages.removeAt(index)
+        }
+    }
+    private fun startPeriodicListeningCheck() {
+        mainHandler.postDelayed({
+            if (_isListening.value && _isAppSpeaking.value) {
+                Log.d("MainViewModel", "log: Periodic check - Restarting listening")
+                startListening()
+            }
+            startPeriodicListeningCheck()
+        }, 3000) // Check every 3 seconds
+    }
+
+    fun stopListening() {
+        voiceTriggerDetector.stopListening()
+        Log.d("MainViewModel", "log: stopListening called 2")
+        _isListening.value = false
+    }
+
+    fun onTriggerWordDetected(userMessage: String) { // Add userMessage parameter
+        // Add user message to the conversation state
+        Log.d("MainViewModel", "log: onTriggerWordDetected called")
+
+        // Stop listening
+        voiceTriggerDetector.stopListening() // Replace stopListeningForever() with stopListening()
+        Log.d("MainViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called")
+
+        // Send the user message to OpenAI API and process the response
+        viewModelScope.launch {
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
+        }
+    }
+
+    fun loadConversation(conversationId: UUID) {
+        viewModelScope.launch {
+            val loadedConversation = conversationsManager.loadConversation(conversationId)
+            if (loadedConversation != null) {
+                conversationManager.conversation = loadedConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
+                Log.d("SessionViewModel", "Loaded conversation ID: ${loadedConversation.id}")
+                Log.d("SessionViewModel", "Number of messages in loaded conversation: ${loadedConversation.messages.size}")
+                Log.d("SessionViewModel", "Messages in loaded conversation: ${loadedConversation.messages}")
+            }
+        }
+    }
+    init {
+        loadInitialConversation(conversationId)
+        startPeriodicListeningCheck()
+    }
+
+
+    fun saveConversation() {
+        showSaveDialog.value = true
+    }
+
+    fun onSaveDialogConfirmed() {
+        if (saveDialogTitle.value.isNotBlank()) {
+            viewModelScope.launch {
+                val updatedConversation = conversationManager.conversation.copy(title = saveDialogTitle.value)
+                conversationsManager.saveConversation(conversationManager.conversation)
+                conversationManager.conversation = updatedConversation
+            }
+            showSaveDialog.value = false
+            saveDialogTitle.value = ""
+        }
+    }
+
+    fun onSaveDialogDismissed() {
+        showSaveDialog.value = false
+        saveDialogTitle.value = ""
+    }
+ 
+``` 
+ 

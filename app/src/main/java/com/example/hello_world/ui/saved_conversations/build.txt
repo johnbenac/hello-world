@@ -1,0 +1,137 @@
+this is the codebase: 
+ 
+```SavedConversationsScreen.kt    
+ 
+package com.example.hello_world
+
+//import androidx.compose.material.CardElevation
+
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
+fun SavedConversationsScreen(
+    viewModel: SavedConversationsViewModel,
+    onConversationSelected: (UUID) -> Unit,
+    onBack: () -> Unit
+) {
+    val savedConversations by viewModel.savedConversations.collectAsState(initial = emptyList<Conversation>())
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Saved Conversations") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) {
+        if (savedConversations.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No saved conversations")
+            }
+        } else {
+            LazyColumn(modifier = Modifier.padding(8.dp)) {
+                items(savedConversations.size) { index ->
+                    val conversation = savedConversations[index]
+                    ConversationCard(
+                        conversation = conversation,
+                        onClick = {
+                            Log.d("SavedConversationsScreen", "Selected conversation ID: ${conversation.id}")
+                            onConversationSelected(conversation.id)
+                        },
+                        onDeleteClicked = { viewModel.deleteConversation(conversation.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardElevation(
+    modifier: Modifier = Modifier,
+    elevation: Dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.graphicsLayer(
+            shadowElevation = elevation.value,
+            shape = RoundedCornerShape(4.dp),
+            clip = true
+        ),
+        content = content
+    )
+}
+
+@Composable
+fun ConversationCard(
+    conversation: Conversation,
+    onClick: () -> Unit,
+    onDeleteClicked: () -> Unit
+) {
+    CardElevation(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .clickable { onClick() },
+        elevation = 4.dp
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(conversation.title)
+            Text("Date started: ${formatDate(conversation.dateStarted)}")
+            Text("Date last saved: ${formatDate(conversation.dateLastSaved)}")
+            Text("Message count: ${conversation.messageCount}")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onDeleteClicked) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
+            }
+        }
+    }
+}
+
+fun formatDate(timestamp: Long): String {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy, HH:mm", Locale.getDefault())
+    return dateFormat.format(Date(timestamp))
+ 
+``` 
+ 
+ 
+```SavedConversationsViewModel.kt    
+ 
+package com.example.hello_world.ui.saved_conversations.viewmodel
+
+
+class SavedConversationsViewModel(
+    private val conversationRepository: IConversationRepository
+) : ViewModel() {
+    private val _savedConversations = MutableStateFlow<List<Conversation>>(emptyList())
+    val savedConversations: StateFlow<List<Conversation>> = _savedConversations
+
+    init {
+        viewModelScope.launch {
+            _savedConversations.value = loadSavedConversations()
+        }
+    }
+
+    private suspend fun loadSavedConversations(): List<Conversation> {
+        // Replace the TODO with the actual implementation
+        return conversationRepository.loadAllConversations()
+    }
+
+    // Implement methods for deleting saved conversations
+    fun deleteConversation(conversationId: UUID) {
+        viewModelScope.launch {
+            conversationRepository.deleteConversation(conversationId)
+            _savedConversations.value = loadSavedConversations()
+        }
+    }
+ 
+``` 
+ 

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.material.SnackbarHostState
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.viewModelScope
 import com.example.hello_world.managers.ConversationManager
@@ -22,6 +23,7 @@ import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManag
 import com.example.hello_world.services.media_playback.MediaPlaybackManager
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.example.hello_world.withExponentialBackoff
 
 
 class SessionViewModel(
@@ -30,7 +32,8 @@ class SessionViewModel(
     val settingsViewModel: SettingsViewModel,
     val openAiApiService: OpenAiApiService,
     val conversationRepository: IConversationRepository,
-    var textToSpeechServiceState: MutableState<TextToSpeechService>?
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
+    private val snackbarHostState: SnackbarHostState
 ) : ViewModel() {
 
 
@@ -95,7 +98,13 @@ class SessionViewModel(
         conversationMessages.add(userMessageObj)
 
 
-        val responseText = openAiApiService.sendMessage(conversationManager.conversation.messages)
+        val responseText = withExponentialBackoff(context, snackbarHostState, { // Pass snackbarHostState directly
+            openAiApiService.sendMessage(conversationManager.conversation.messages)
+        }, viewModelScope, onRetry = {
+            viewModelScope.launch {
+                sendUserMessageToOpenAi(userMessage)
+            }
+        }) ?: return
         Log.d("MainViewModel", "Received response from OpenAI API: $responseText")
 //        Log.d("MainViewModel", "User message added with audioFilePathState: $audioFilePathState")
 

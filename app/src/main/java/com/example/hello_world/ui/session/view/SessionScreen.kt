@@ -18,6 +18,8 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
@@ -41,7 +43,8 @@ fun SessionScreen(
     onSettingsClicked: () -> Unit,
     textToSpeechServiceState: MutableState<TextToSpeechService>,
     mediaPlaybackManager: MediaPlaybackManager,
-    navController: NavController
+    navController: NavController,
+    snackbarHostState: SnackbarHostState
 ) {
     LaunchedEffect(sessionViewModel) {
         sessionViewModel.conversationId?.let {
@@ -174,5 +177,9 @@ fun SessionScreen(
                 Text("Share Conversation Text")
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.Center)
+        )
     }
 }

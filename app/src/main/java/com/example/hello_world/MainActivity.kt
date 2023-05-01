@@ -11,11 +11,15 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.compose.material.SnackbarHostState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -27,14 +31,17 @@ import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
 import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
 import java.util.UUID
+
 
 @ExperimentalMaterial3Api
 class MainActivity : AppCompatActivity() {
     private var textToSpeechService: TextToSpeechService? = null
-    private lateinit var voiceTriggerDetector: VoiceTriggerDetector
+    private var voiceTriggerDetector: VoiceTriggerDetector? = null
     private lateinit var openAiApiService: OpenAiApiService
-    private lateinit var sessionViewModel: SessionViewModel
+    private val sessionViewModel = mutableStateOf<SessionViewModel?>(null)
+//    private val snackbarHostState = SnackbarHostState()
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
     private val settingsViewModel = SettingsViewModel()
     private val mediaPlaybackManager = AndroidMediaPlaybackManager()
@@ -46,24 +53,40 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         requestAudioPermission()
         val textToSpeechServiceState = mutableStateOf<TextToSpeechService>(
-            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
+            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.value?.startListening() })
         val conversationRepository = LocalRoomConversationRepository(this)
         openAiApiService = OpenAiApiService("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", settingsViewModel)
-        sessionViewModel = SessionViewModel(
-            conversationId = null,
-            context = this,
-            settingsViewModel = settingsViewModel,
-            openAiApiService = openAiApiService,
-            conversationRepository = conversationRepository,
-            textToSpeechServiceState = textToSpeechServiceState // Pass this argument
-        )
-
-        sessionViewModel.textToSpeechServiceState = textToSpeechServiceState
 
 
-        voiceTriggerDetector = sessionViewModel.voiceTriggerDetector
+
+//        sessionViewModel.textToSpeechServiceState = textToSpeechServiceState
+
+
+        voiceTriggerDetector = sessionViewModel.value?.voiceTriggerDetector
+//        sessionViewModel = SessionViewModel(
+//            conversationId = null,
+//            context = this,
+//            settingsViewModel = settingsViewModel,
+//            openAiApiService = openAiApiService,
+//            conversationRepository = conversationRepository,
+//            textToSpeechServiceState = textToSpeechServiceState,
+//            snackbarHostState = snackbarHostState
+//        )
         setContent {
+            val snackbarHostState = remember { SnackbarHostState() }
+            sessionViewModel.value = remember {
+                SessionViewModel(
+                    conversationId = null,
+                    context = this@MainActivity,
+                    settingsViewModel = settingsViewModel,
+                    openAiApiService = openAiApiService,
+                    conversationRepository = conversationRepository,
+                    textToSpeechServiceState = textToSpeechServiceState,
+                    snackbarHostState = snackbarHostState
+                )
+            }
             val navController = rememberNavController()
+
             NavHost(navController, startDestination = "home") {
                 composable("home") {
                     HomeScreen(onSessionsClicked = { navController.navigate("sessions") }, onConfigPacksClicked = { navController.navigate("configPacks") })
@@ -76,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 composable("session/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")?.let { UUID.fromString(it) }
-                    val currentContext = LocalContext.current // Get the current context
+                    val currentContext = LocalContext.current
                     val sessionViewModel = remember(conversationId) {
                         SessionViewModel(
                             conversationId,
@@ -84,19 +107,28 @@ class MainActivity : AppCompatActivity() {
                             settingsViewModel,
                             openAiApiService,
                             conversationRepository,
-                            textToSpeechServiceState // Pass this argument
+                            textToSpeechServiceState,
+                            snackbarHostState
                         )
                     }
                     sessionViewModel.textToSpeechServiceState = textToSpeechServiceState
-                    SessionScreen(sessionViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState, mediaPlaybackManager, navController)
+                    SessionScreen(sessionViewModel, settingsViewModel, { navController.navigate("settings") }, textToSpeechServiceState, mediaPlaybackManager, navController,snackbarHostState)
                 }
                 composable("sessions") {
+                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository) }
                     SavedConversationsScreen(
-                        viewModel = SavedConversationsViewModel(conversationRepository),
+                        viewModel = savedConversationsViewModel,
                         onConversationSelected = { conversationId ->
                             navController.navigate("session/${conversationId.toString()}")
                         },
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onNewConversationClicked = {
+                            savedConversationsViewModel.viewModelScope.launch {
+                                val newConversationId = savedConversationsViewModel.createNewConversation()
+                                // Navigate to the SessionScreen with the new conversation ID
+                                navController.navigate("session/${newConversationId.toString()}")
+                            }
+                        }
                     )
                 }
                 composable("configPacks") {
@@ -114,7 +146,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        voiceTriggerDetector.startListening()
+        voiceTriggerDetector?.startListening()
     }
     override fun onPause() {
         super.onPause()
