@@ -54,7 +54,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
             OpenAiApiRequest(
                 messages = messages,
                 temperature = selectedProfile?.temperature ?: 0.9,
-                max_tokens = selectedProfile?.maxLength ?: 100,
+                max_tokens = selectedProfile?.maxLength ?: 1000,
                 top_p = 1,
                 frequency_penalty = selectedProfile?.frequencyPenalty ?: 0.0,
                 presence_penalty = selectedProfile?.presencePenalty ?: 0.1,
@@ -82,15 +82,16 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
     
             override fun onResponse(call: Call, response: Response) {
                 if (continuation.isCancelled) return
-            
+
                 if (!response.isSuccessful) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    val responseBody = response.body?.string() ?: "Unknown error"
+                    continuation.resumeWithException(IOException("Unexpected code $response - $responseBody"))
                 } else {
                     val responseBody = response.body?.string()
-//                    Log.d("OpenAiApiService", "Received JSON: $responseBody")
+                    // Log.d("OpenAiApiService", "Received JSON: $responseBody")
                     val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
                     val apiResponse = jsonAdapter.fromJson(responseBody)
-            
+
                     continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.message?.content ?: ""))
                 }
             }

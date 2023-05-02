@@ -11,10 +11,10 @@ import androidx.lifecycle.ViewModel
 class SettingsViewModel : ViewModel() {
 
     val defaultConfigPacks = listOf(
-        ConfigPack("Profile 1", "You are an AI assistant named Jake.", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
-        ConfigPack("Profile 2", "You are an AI assistant named Jane.", 150, 0.8, 0.1, 0.2, "gpt-3.5-turbo")
+        ConfigPack("GPT3.5", "I am an AI assistant named Jake.", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
+        ConfigPack("GPT4", "I am here to help you today. What do you need?", 1500, 0.8, 0.1, 0.2, "gpt-4")
     )
-    val editedConfigPack = mutableStateOf(ConfigPack("", "", 100, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
+    val editedConfigPack = mutableStateOf(ConfigPack("", "", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
 
     fun updateEditedProfileName(name: String) {
         Log.d("SettingsViewModel", "Profile name updated: $name")

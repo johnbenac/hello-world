@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         snackbarHostState = SnackbarHostState()
 
         openAiApiService = OpenAiApiService("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", settingsViewModel)
+//        openAiApiService = OpenAiApiService("sk-SggwqYZZuvSwiFI5zkQmIRroRZ", settingsViewModel)
 
 
 

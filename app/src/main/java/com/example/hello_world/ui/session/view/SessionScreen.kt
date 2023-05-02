@@ -121,9 +121,20 @@ fun SessionScreen(
             Button(
                 onClick = {
                     if (textToSpeechServiceState.value is AndroidTextToSpeechService) {
-                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService("82b94d982c1018cb379c0acb629d473c", "TxGEqnHWrfWFTfGW9XjX", context, mediaPlaybackManager) { sessionViewModel.startListening() }
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService(
+                            apiKey = "82b94d982c1018cb379c0acb629d473c",
+                            voiceId = "TxGEqnHWrfWFTfGW9XjX",
+                            context = context,
+                            mediaPlaybackManager = mediaPlaybackManager,
+                            onPlaybackFinished = { sessionViewModel.startListening() },
+                            snackbarHostState = snackbarHostState // Pass snackbarHostState here
+                        )
                     } else {
-                        textToSpeechServiceState.value = AndroidTextToSpeechService(context, mediaPlaybackManager) { sessionViewModel.startListening() }
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(
+                            context = context,
+                            mediaPlaybackManager = mediaPlaybackManager,
+                            onPlaybackFinished = { sessionViewModel.startListening() }
+                        )
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
