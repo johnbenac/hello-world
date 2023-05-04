@@ -2,6 +2,7 @@ package com.example.hello_world
 
 import com.example.hello_world.models.ConversationMessage
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,14 +36,15 @@ import com.example.hello_world.services.media_playback.MediaPlaybackManager
 @Composable
 @ExperimentalMaterial3Api
 @OptIn(ExperimentalMaterialApi::class)
-fun MessageCard( // Composable for the message card
-    message: ConversationMessage, // The message to show
-    onPlayAudio: (String) -> Unit, // Function to call when the play audio button is pressed
-    onCardClicked: () -> Unit, // this is what it does if you click on the card
+fun MessageCard(
+    message: ConversationMessage,
+    onPlayAudio: (String) -> Unit,
+    onCardClicked: () -> Unit,
     mediaPlaybackManager: MediaPlaybackManager,
     context: Context,
     onDeleteClicked: () -> Unit,
-    onEditClicked: (ConversationMessage, String) -> Unit
+    onEditClicked: (ConversationMessage, String) -> Unit,
+    onShareClicked: (String, Uri?) -> Unit // Add this parameter
 ) {
     val isEditing = remember { mutableStateOf(false) }
     val editedMessage = remember { mutableStateOf(message.message) }
@@ -96,6 +99,9 @@ fun MessageCard( // Composable for the message card
                 IconButton(onClick = onDeleteClicked) {
                     Icon(Icons.Filled.Close, contentDescription = "Delete message")
                 }
+                IconButton(onClick = { onShareClicked(message.message, message.audioFilePath.value.toUriOrNull()) }) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share message")
+                }
             }
             MediaControls( // Show the media controls
                 onPlayPause = { // When the play/pause button is pressed
@@ -111,5 +117,13 @@ fun MessageCard( // Composable for the message card
                 onSeekBackward = { mediaPlaybackManager.seekBackward() } // Pass the seekBackward callback
             )
         }
+    }
+}
+
+fun String.toUriOrNull(): Uri? {
+    return if (this.isNotBlank()) {
+        Uri.parse(this)
+    } else {
+        null
     }
 }

@@ -1,6 +1,9 @@
 package com.example.hello_world
 
+import android.content.Intent
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -26,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import com.example.hello_world.services.media_playback.MediaPlaybackManager
 import com.example.hello_world.services.text_to_speech.AndroidTextToSpeechService
@@ -33,6 +37,7 @@ import com.example.hello_world.services.text_to_speech.ElevenLabsTextToSpeechSer
 import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
 import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
+import java.io.File
 
 
 @Composable
@@ -56,6 +61,14 @@ fun SessionScreen(
             Log.d("SessionScreen", "After `sessionViewModel.loadConversation(it)` within the sessionViewModel.conversationId?.let {/.../} block ")
         }
         onDispose { }
+    }
+
+    val shareTextLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+        // You can handle the result of the sharing action here if needed
+    }
+
+    val shareMessageLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+        // You can handle the result of the sharing action here if needed
     }
     val context = LocalContext.current
     val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
@@ -108,6 +121,24 @@ fun SessionScreen(
                             val index = messages.indexOf(message)
                             sessionViewModel.updateMessage(index, message.copy(message = editedMessage))
                             Log.d("SessionScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
+                        },
+                        onShareClicked = { messageText, audioFileUri ->
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, messageText)
+                                if (audioFileUri != null) {
+                                    val fileUri = FileProvider.getUriForFile(
+                                        context,
+                                        context.packageName + ".provider",
+                                        File(audioFileUri.path!!)
+                                    )
+                                    type = "audio/*"
+                                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                            }
+                            val chooserIntent = Intent.createChooser(shareIntent, "Share message")
+                            shareMessageLauncher.launch(chooserIntent)
                         }
                     )
                 }
@@ -185,8 +216,27 @@ fun SessionScreen(
             }
             Button(
                 onClick = {
-                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { it.message }
-                    conversationTextState.value = conversationText
+                    // Get the "system" message from the selected config pack
+                    val systemMessage = "System: ${configPacksViewModel.selectedConfigPack?.systemMessage}\n"
+
+                    // Modify the conversationText to include the "user" or "assistant" prefix
+                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { message ->
+                        "${message.sender}: ${message.message}"
+                    }
+
+                    // Combine the systemMessage and conversationText
+                    val fullText = systemMessage + conversationText
+                    conversationTextState.value = fullText
+
+                    // Add this block of code to create and launch the share intent
+                    val sendIntent: Intent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, conversationText)
+                        type = "text/plain"
+                    }
+
+                    val shareIntent = Intent.createChooser(sendIntent, null)
+                    shareTextLauncher.launch(shareIntent)
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {

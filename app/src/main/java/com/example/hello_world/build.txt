@@ -1,1 +1,2501 @@
-foo
+this is the codebase: 
+ 
+```MainActivity.kt    
+ 
+package com.example.hello_world
+
+
+
+@ExperimentalMaterial3Api
+class MainActivity : AppCompatActivity() {
+    private var textToSpeechService: TextToSpeechService? = null
+    private var voiceTriggerDetector: VoiceTriggerDetector? = null
+    private lateinit var openAiApiService: OpenAiApiService
+
+    private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
+
+    private val mediaPlaybackManager = AndroidMediaPlaybackManager()
+    private lateinit var configPackRepository: LocalRoomConfigPackRepository
+    private lateinit var conversationRepository: LocalRoomConversationRepository
+    private lateinit var configPacksViewModel: ConfigPacksViewModel
+    private lateinit var textToSpeechServiceState: MutableState<TextToSpeechService>
+    private lateinit var snackbarHostState: SnackbarHostState
+
+    val sessionViewModel: SessionViewModel by viewModels {
+        SessionViewModelFactory(
+            conversationId = null,
+            context = this@MainActivity,
+            configPacksViewModel = configPacksViewModel,
+            openAiApiService = openAiApiService,
+            conversationRepository = conversationRepository,
+            textToSpeechServiceState = textToSpeechServiceState,
+            snackbarHostState = snackbarHostState
+        )
+    }
+
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        requestAudioPermission()
+
+        configPackRepository = LocalRoomConfigPackRepository(this)
+        conversationRepository = LocalRoomConversationRepository(this)
+        configPacksViewModel = ConfigPacksViewModel(configPackRepository)
+        textToSpeechServiceState = mutableStateOf(
+            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
+        snackbarHostState = SnackbarHostState()
+
+        openAiApiService = OpenAiApiService("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", configPacksViewModel)
+//        openAiApiService = OpenAiApiService("sk-SggwqYZZuvSwiFI5zkQmIRroRZ", settingsViewModel)
+
+
+
+
+
+        voiceTriggerDetector = sessionViewModel.voiceTriggerDetector
+
+        setContent {
+            Log.d("MainActivity", "Current SessionViewModel instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+            val navController = rememberNavController()
+
+            NavHost(navController, startDestination = "home") {
+                composable("home") {
+                    HomeScreen(onSessionsClicked = { navController.navigate("sessions") }, onConfigPacksClicked = { navController.navigate("configPacks") })
+                }
+                composable("settings") {
+                    ConfigPacksScreen(configPacksViewModel, { navController.popBackStack() }, navController)
+                }
+                composable("edit-settings") {
+                    ConfigPackScreen(configPacksViewModel, { navController.popBackStack() }, { navController.popBackStack() })
+                }
+                composable("session/{conversationId}") { backStackEntry ->
+                    val conversationId = backStackEntry.arguments?.getString("conversationId")?.let { UUID.fromString(it) }
+                    SessionScreen(
+                        sessionViewModel,
+                        configPacksViewModel,
+                        { navController.navigate("settings") },
+                        textToSpeechServiceState,
+                        mediaPlaybackManager,
+                        navController,
+                        snackbarHostState
+                    )
+                }
+                composable("sessions") {
+                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository) }
+                    SavedConversationsScreen(
+                        viewModel = savedConversationsViewModel,
+                        onConversationSelected = { conversationId ->
+                            Log.d("SessionScreen", "Selected conversation ID: ${conversationId}")
+                            navController.navigate("session/${conversationId.toString()}")
+                            sessionViewModel.loadConversationWithId(conversationId)
+                            Log.d("SessionScreen", "Selected conversation ID after `navController.navigate(/.../) was called`: ${conversationId}")
+
+                        },
+                        onBack = { navController.popBackStack() },
+                        onNewConversationClicked = {
+                            savedConversationsViewModel.viewModelScope.launch {
+                                val newConversationId = savedConversationsViewModel.createNewConversation()
+                                navController.navigate("session/${newConversationId.toString()}")
+                            }
+                        }
+                    )
+                }
+                composable("configPacks") {
+                    Text("Placeholder for ConfigPacksScreen")
+                }
+            }
+        }
+    }
+
+    private fun requestAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), RECORD_AUDIO_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        voiceTriggerDetector?.startListening()
+    }
+    override fun onPause() {
+        super.onPause()
+        textToSpeechService?.stop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        textToSpeechService?.shutdown()
+    }
+
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+            } else {
+
+                Toast.makeText(this, "Permission to record audio is required to use this app.", Toast.LENGTH_LONG).show()
+                finish()
+            }
+        }
+    }
+    internal fun shareConversationText(conversationText: String) {
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, conversationText)
+            type = "text/plain"
+        }
+        startActivity(Intent.createChooser(sendIntent, "Share conversation text"))
+    }
+ 
+``` 
+ 
+ 
+```LocalConfigPackDao.kt    
+ 
+package com.example.hello_world.data.local.configpack.dao
+
+
+@Dao
+interface LocalConfigPackDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConfigPack(configPack: LocalConfigPackEntity)
+
+    @Query("SELECT * FROM config_packs")
+    suspend fun getAllConfigPacks(): List<LocalConfigPackEntity>
+
+    @Query("DELETE FROM config_packs WHERE id = :configPackId")
+    suspend fun deleteConfigPack(configPackId: String)
+ 
+``` 
+ 
+ 
+```LocalConfigPackEntity.kt    
+ 
+package com.example.hello_world.data.local.configpack.entities
+
+
+
+@Entity(tableName = "config_packs")
+data class LocalConfigPackEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+ 
+``` 
+ 
+ 
+```LocalConversationDao.kt    
+ 
+package com.example.hello_world.data.local.conversation.dao
+
+
+@Dao
+interface LocalConversationDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConversation(conversation: LocalConversationEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: LocalConversationMessageEntity)
+
+    @Query("SELECT * FROM conversations WHERE id = :conversationId")
+    suspend fun getConversation(conversationId: String): LocalConversationEntity?
+
+    @Query("SELECT * FROM conversation_messages WHERE conversationId = :conversationId")
+    suspend fun getMessages(conversationId: String): List<LocalConversationMessageEntity>
+
+    @Transaction
+    suspend fun saveConversation(conversation: LocalConversationEntity, messages: List<LocalConversationMessageEntity>) {
+        insertConversation(conversation)
+        messages.forEach { insertMessage(it) }
+    }
+
+    @Query("SELECT * FROM conversations")
+    suspend fun getAllConversations(): List<LocalConversationEntity>
+
+    @Query("DELETE FROM conversations WHERE id = :conversationId")
+    suspend fun deleteConversation(conversationId: String)
+
+    @Query("DELETE FROM conversation_messages WHERE conversationId = :conversationId")
+    suspend fun deleteMessages(conversationId: String)
+ 
+``` 
+ 
+ 
+```LocalConversationDatabase.kt    
+ 
+package com.example.hello_world.data.local.conversation.database
+
+
+
+@Database(
+    entities = [LocalConversationEntity::class, LocalConversationMessageEntity::class, LocalConfigPackEntity::class],
+    version = 3,
+    exportSchema = false
+)
+abstract class LocalConversationDatabase : RoomDatabase() {
+    abstract fun conversationDao(): LocalConversationDao
+    abstract fun configPackDao(): LocalConfigPackDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: LocalConversationDatabase? = null
+
+        fun getInstance(context: Context): LocalConversationDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    LocalConversationDatabase::class.java,
+                    "conversation_database"
+                ).build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+ 
+``` 
+ 
+ 
+```LocalConversationEntity.kt    
+ 
+package com.example.hello_world.data.local.conversation.entities
+
+
+@Entity(tableName = "conversations")
+data class LocalConversationEntity(
+    @PrimaryKey
+    val id: String,
+    val profileJson: String,
+    val createdAt: Long,
+    val title: String?,
+    val dateStarted: Long,
+    val dateLastSaved: Long,
+    val messageCount: Int
+ 
+``` 
+ 
+ 
+```LocalConversationMessageEntity.kt    
+ 
+package com.example.hello_world.data.local.conversation.entities
+
+
+@Entity(
+    tableName = "conversation_messages",
+    foreignKeys = [
+        ForeignKey(
+            entity = LocalConversationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["conversationId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class LocalConversationMessageEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    val conversationId: String,
+    val sender: String,
+    val message: String,
+    val audioFilePath: String
+ 
+``` 
+ 
+ 
+```ConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface ConfigPackRepository {
+    fun addConfigPack(configPack: ConfigPack)
+    fun removeConfigPack(configPack: ConfigPack)
+    fun getAllConfigPacks(): List<ConfigPack>
+    fun findConfigPackByName(name: String): ConfigPack?
+}
+
+
+class DefaultConfigPackRepository : ConfigPackRepository {
+    private val configPacks = mutableListOf<ConfigPack>()
+
+    init {
+        // Add default ConfigPacks here
+        configPacks.add(ConfigPack(UUID.randomUUID(),"GPT3.5", "I am an AI assistant named Jake.", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
+        configPacks.add(ConfigPack(UUID.randomUUID(),"GPT4", "I am here to help you today. What do you need?", 1500, 0.8, 0.1, 0.2, "gpt-4"))
+    }
+
+    override fun addConfigPack(configPack: ConfigPack) {
+        configPacks.add(configPack)
+    }
+
+    override fun removeConfigPack(configPack: ConfigPack) {
+        configPacks.remove(configPack)
+    }
+
+    override fun getAllConfigPacks(): List<ConfigPack> {
+        return configPacks.toList()
+    }
+
+    override fun findConfigPackByName(name: String): ConfigPack? {
+        return configPacks.firstOrNull { it.name == name }
+    }
+ 
+``` 
+ 
+ 
+```IConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface IConfigPackRepository {
+    suspend fun addConfigPack(configPack: ConfigPack)
+    suspend fun removeConfigPack(configPack: ConfigPack)
+    suspend fun getAllConfigPacks(): List<ConfigPack>
+ 
+``` 
+ 
+ 
+```IConversationRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface IConversationRepository {
+    suspend fun saveConversation(conversation: Conversation)
+    suspend fun loadConversation(conversationId: UUID): Conversation?
+    suspend fun deleteConversation(conversationId: UUID)
+    suspend fun loadAllConversations(): List<Conversation>
+}
+
+ 
+``` 
+ 
+ 
+```LocalRoomConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+
+class LocalRoomConfigPackRepository(context: Context) : IConfigPackRepository {
+    private val configPackDao = LocalConversationDatabase.getInstance(context).configPackDao()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+
+    override suspend fun addConfigPack(configPack: ConfigPack) {
+        val localConfigPack = LocalConfigPackEntity(
+            id = configPack.id.toString(),
+            name = configPack.name,
+            systemMessage = configPack.systemMessage,
+            maxLength = configPack.maxLength,
+            temperature = configPack.temperature,
+            frequencyPenalty = configPack.frequencyPenalty,
+            presencePenalty = configPack.presencePenalty,
+            model = configPack.model
+        )
+        configPackDao.insertConfigPack(localConfigPack)
+    }
+
+    override suspend fun removeConfigPack(configPack: ConfigPack) {
+        configPackDao.deleteConfigPack(configPack.id.toString())
+    }
+
+    override suspend fun getAllConfigPacks(): List<ConfigPack> {
+        val localConfigPacks = configPackDao.getAllConfigPacks()
+        return localConfigPacks.map { localConfigPack ->
+            ConfigPack(
+                id = UUID.fromString(localConfigPack.id),
+                name = localConfigPack.name,
+                systemMessage = localConfigPack.systemMessage,
+                maxLength = localConfigPack.maxLength,
+                temperature = localConfigPack.temperature,
+                frequencyPenalty = localConfigPack.frequencyPenalty,
+                presencePenalty = localConfigPack.presencePenalty,
+                model = localConfigPack.model
+            )
+        }
+    }
+
+//    override suspend fun findConfigPackByName(name: String): ConfigPack? {
+//        // TODO: Implement finding a configPack by name in the database
+//    }
+ 
+``` 
+ 
+ 
+```LocalRoomConversationRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+
+
+
+
+class LocalRoomConversationRepository(context: Context) : IConversationRepository {
+    private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
+    private val moshi = Moshi.Builder()
+        .add(UUIDJsonAdapter())
+        .add(KotlinJsonAdapterFactory())
+        .build()
+    override suspend fun saveConversation(conversation: Conversation) {
+        Log.d("LocalRoomRepo", "Saving conversation with ID: ${conversation.id}")
+        val configPackJson = moshi.adapter(ConfigPack::class.java).toJson(conversation.configPack)
+        withContext(Dispatchers.IO) {
+            val conversationEntity = LocalConversationEntity(
+                id = conversation.id.toString(),
+                profileJson = configPackJson,
+                createdAt = conversation.createdAt,
+                title = conversation.title,
+                dateStarted = conversation.dateStarted,
+                dateLastSaved = conversation.dateLastSaved,
+                messageCount = conversation.messages.size
+            )
+            val messageEntities = conversation.messages.map { message ->
+                LocalConversationMessageEntity(
+                    conversationId = conversation.id.toString(),
+                    sender = message.sender,
+                    message = message.message,
+                    audioFilePath = message.audioFilePath.value
+                )
+            }
+            conversationDao.saveConversation(conversationEntity, messageEntities)
+        }
+    }
+
+    override suspend fun loadConversation(conversationId: UUID): Conversation? {
+        Log.d("LocalRoomRepo", "Loading conversation with ID: $conversationId")
+        return withContext(Dispatchers.IO) {
+            val conversationEntity = conversationDao.getConversation(conversationId.toString())
+            val messageEntities = conversationDao.getMessages(conversationId.toString())
+            val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity?.profileJson)
+            if (conversationEntity != null && configPack != null) {
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(conversationEntity.profileJson)
+                configPack?.let {
+                    val messages = messageEntities.map { entity ->
+                        ConversationMessage(
+                            sender = entity.sender,
+                            message = entity.message,
+                            audioFilePath = mutableStateOf(entity.audioFilePath)
+                        )
+                    }.toMutableList()
+
+                    Conversation(
+                        id = UUID.fromString(conversationEntity.id),
+                        messages = messages,
+                        configPack = it,
+                        createdAt = conversationEntity.createdAt,
+                        title = conversationEntity.title.orEmpty(),
+                        dateStarted = conversationEntity.dateStarted,
+                        dateLastSaved = conversationEntity.dateLastSaved,
+                        messageCount = conversationEntity.messageCount
+                    )
+                }
+            } else {
+                null
+            }
+        }
+    }
+
+    override suspend fun deleteConversation(conversationId: UUID) {
+        Log.d("LocalRoomRepo", "Deleting conversation with ID: $conversationId")
+        withContext(Dispatchers.IO) {
+            conversationDao.deleteMessages(conversationId.toString())
+            conversationDao.deleteConversation(conversationId.toString())
+        }
+    }
+
+    override suspend fun loadAllConversations(): List<Conversation> {
+        return withContext(Dispatchers.IO) {
+            val conversationEntities = conversationDao.getAllConversations()
+            conversationEntities.map { entity ->
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(entity.profileJson)
+                configPack?.let {
+                    Conversation(
+                        id = UUID.fromString(entity.id),
+                        messages = mutableListOf(), // We don't need messages for the saved conversations list
+                        configPack = it,
+                        createdAt = entity.createdAt,
+                        title = entity.title.orEmpty(),
+                        dateStarted = entity.dateStarted,
+                        dateLastSaved = entity.dateLastSaved,
+                        messageCount = entity.messageCount
+                    )
+                }
+            }.filterNotNull()
+        }
+    }
+}
+
+class UUIDJsonAdapter {
+    @ToJson
+    fun toJson(uuid: UUID): String {
+        return uuid.toString()
+    }
+
+    @FromJson
+    fun fromJson(uuidString: String): UUID {
+        return UUID.fromString(uuidString)
+    }
+ 
+``` 
+ 
+ 
+```ConversationManager.kt    
+ 
+package com.example.hello_world.managers
+
+
+class ConversationManager(var conversation: Conversation) {
+
+    fun addMessage(message: ConversationMessage) {
+        conversation.messages.add(message)
+    }
+
+    fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
+        conversation.messages[index] = updatedMessage
+    }
+
+    fun deleteMessage(index: Int) {
+        conversation.messages.removeAt(index)
+    }
+ 
+``` 
+ 
+ 
+```ConversationsManager.kt    
+ 
+package com.example.hello_world.managers
+
+
+class ConversationsManager(private val conversationRepository: IConversationRepository) {
+
+    suspend fun saveConversation(conversation: Conversation) {
+        conversationRepository.saveConversation(conversation)
+    }
+
+    suspend fun loadConversation(conversationId: UUID): Conversation? {
+        return conversationRepository.loadConversation(conversationId)
+    }
+
+    suspend fun deleteConversation(conversationId: UUID) {
+        conversationRepository.deleteConversation(conversationId)
+    }
+
+    suspend fun loadAllConversations(): List<Conversation> {
+        return conversationRepository.loadAllConversations()
+    }
+ 
+``` 
+ 
+ 
+```ConfigPack.kt    
+ 
+package com.example.hello_world.models
+
+data class ConfigPack(
+    val id: UUID,
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+) {
+    companion object {
+        val defaultConfigPack = ConfigPack(
+            id = UUID.randomUUID(),
+            name = "Jake",
+            systemMessage = "I am an AI assistant named Jake.",
+            maxLength = 100,
+            temperature = 0.9,
+            frequencyPenalty = 0.0,
+            presencePenalty = 0.1,
+            model = "gpt-3.5-turbo"
+        )
+    }
+ 
+``` 
+ 
+ 
+```ConfigPacks.kt    
+ 
+package com.example.hello_world.models
+
+class ConfigPacks {
+ 
+``` 
+ 
+ 
+```Conversation.kt    
+ 
+package com.example.hello_world.models
+
+data class Conversation(
+    val id: UUID = UUID.randomUUID(),
+    val messages: MutableList<ConversationMessage> = mutableListOf(),
+    val configPack: ConfigPack,
+    val createdAt: Long = System.currentTimeMillis(),
+    val title: String = "Untitled Conversation",
+    val dateStarted: Long = System.currentTimeMillis(),
+    val dateLastSaved: Long = System.currentTimeMillis(),
+    val messageCount: Int = 0
+ 
+``` 
+ 
+ 
+```ConversationMessage.kt    
+ 
+package com.example.hello_world.models
+
+
+data class ConversationMessage(
+    val sender: String,
+    val message: String,
+    val audioFilePath: MutableState<String>
+ 
+``` 
+ 
+ 
+```OpenAiApiResponse.kt    
+ 
+package com.example.hello_world
+
+data class OpenAiApiResponse(val choices: List<OpenAiApiChoice>)
+
+data class OpenAiApiChoice(val message: OpenAiApiMessage)
+
+data class OpenAiApiMessage(val role: String, val content: String)
+ 
+``` 
+ 
+ 
+```OpenAiApiService.kt    
+ 
+package com.example.hello_world
+
+
+data class OpenAiMessage(val role: String, val content: String)
+
+data class OpenAiApiRequest(
+    val messages: List<OpenAiMessage>,
+    val temperature: Double,
+    val max_tokens: Int,
+    val top_p: Int,
+    val frequency_penalty: Double,
+    val presence_penalty: Double,
+    val model: String,
+    val stream: Boolean
+)
+
+class OpenAiApiService(private val apiKey: String, private val configPacksViewModel: ConfigPacksViewModel, private val timeoutInSeconds: Long = 600) {
+    private val client = OkHttpClient.Builder()
+        .readTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .writeTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .connectTimeout(timeoutInSeconds, TimeUnit.SECONDS)
+        .build()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+
+    suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
+        val currentProfile = configPacksViewModel.selectedConfigPack
+        val systemMessage = currentProfile?.systemMessage ?: "you are an ai assistant named jake"
+        val messages = mutableListOf(OpenAiMessage("system", systemMessage))
+
+        conversationHistory.forEach { message ->
+            messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
+        }
+
+        val selectedProfile = configPacksViewModel.selectedConfigPack
+
+        val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
+            OpenAiApiRequest(
+                messages = messages,
+                temperature = selectedProfile?.temperature ?: 0.9,
+                max_tokens = selectedProfile?.maxLength ?: 1000,
+                top_p = 1,
+                frequency_penalty = selectedProfile?.frequencyPenalty ?: 0.0,
+                presence_penalty = selectedProfile?.presencePenalty ?: 0.1,
+                model = selectedProfile?.model ?: "gpt-3.5-turbo",
+                stream = false
+            )
+        )
+        Log.d("OpenAiApiService", "API Request: $requestJson")
+    
+        val requestBody = requestJson.toRequestBody("application/json; charset=utf-8".toMediaType())
+    
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(requestBody)
+            .build()
+    
+        val call = client.newCall(request)
+    
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isCancelled) return
+                continuation.resumeWithException(e)
+            }
+    
+            override fun onResponse(call: Call, response: Response) {
+                if (continuation.isCancelled) return
+
+                if (!response.isSuccessful) {
+                    val responseBody = response.body?.string() ?: "Unknown error"
+                    continuation.resumeWithException(IOException("Unexpected code $response - $responseBody"))
+                } else {
+                    val responseBody = response.body?.string()
+                    // Log.d("OpenAiApiService", "Received JSON: $responseBody")
+                    val jsonAdapter = moshi.adapter(OpenAiApiResponse::class.java)
+                    val apiResponse = jsonAdapter.fromJson(responseBody)
+
+                    continuation.resumeWith(Result.success(apiResponse?.choices?.firstOrNull()?.message?.content ?: ""))
+                }
+            }
+        })
+    }
+ 
+``` 
+ 
+ 
+```AndroidMediaPlaybackManager.kt    
+ 
+
+package com.example.hello_world.services.media_playback
+
+
+class AndroidMediaPlaybackManager : MediaPlaybackManager {
+    var mediaPlayer: MediaPlayer? = null
+    private var mediaController: MediaController? = null
+    private var currentFilePath: String? = null
+    private var playbackPosition: Int = 0
+
+    override fun seekForward() {
+        val currentPosition = mediaPlayer?.currentPosition ?: 0
+        val newPosition = currentPosition + 10000 // Skip forward by 10 seconds
+        mediaPlayer?.seekTo(newPosition)
+    }
+
+    override fun seekBackward() {
+        val currentPosition = mediaPlayer?.currentPosition ?: 0
+        val newPosition = currentPosition - 10000 // Skip backward by 10 seconds
+        mediaPlayer?.seekTo(newPosition)
+    }
+    override fun pause() {
+        mediaPlayer?.apply {
+            playbackPosition = currentPosition // Save the playback position
+            Log.d("AndroidMediaPlaybackManager", "Pausing audio at position: $playbackPosition")
+            pause()
+        }
+    }
+    override fun isPlaying(): Boolean {
+        return mediaPlayer?.isPlaying ?: false
+    }
+    override fun playAudio(filePath: String, context: Context, onFinish: (() -> Unit)?) {
+        if (filePath.isEmpty()) {
+            Toast.makeText(context, "Audio file not loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (mediaPlayer != null && currentFilePath == filePath) {
+            mediaPlayer?.apply {
+                Log.d("AndroidMediaPlaybackManager", "Resuming audio at position: $playbackPosition")
+                Log.d("AndroidMediaPlaybackManager", "memory address: $this")
+                seekTo(playbackPosition) // Set the playback position
+                start()
+            }
+        } else {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath")
+                setDataSource(filePath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    onFinish?.invoke()}
+            }
+        }
+        mediaController?.hide()
+        mediaController = MediaController(context)
+        mediaController?.setMediaPlayer(object : MediaController.MediaPlayerControl {
+            private var isPaused = false
+            override fun start() {
+                if (isPaused) {
+                    mediaPlayer?.start()
+                    isPaused = false
+                }
+            }
+
+            override fun pause() {
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.pause()
+                    isPaused = true
+                }
+            }
+            // Implement other required methods
+            override fun getDuration(): Int = mediaPlayer?.duration ?: 0
+            override fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
+            override fun getBufferPercentage(): Int = 0
+            override fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
+            override fun seekTo(position: Int) {
+                mediaPlayer?.seekTo(position)
+            }
+            override fun canPause(): Boolean {
+                // Return true if your media player can pause, otherwise return false
+                return true
+            }
+            override fun getAudioSessionId(): Int {
+                // Return the audio session ID of your media player or 0 if not available
+                return mediaPlayer?.audioSessionId ?: 0
+            }
+            override fun canSeekBackward(): Boolean {
+                // Return true if your media player can seek backward, otherwise return false
+                return true
+            }
+            override fun canSeekForward(): Boolean {
+                // Return true if your media player can seek forward, otherwise return false
+                return true
+            }
+        })
+        mediaController?.show()
+    }
+}
+ 
+``` 
+ 
+ 
+```MediaPlaybackManager.kt    
+ 
+package com.example.hello_world.services.media_playback
+
+
+
+interface MediaPlaybackManager {
+    fun playAudio(filePath: String, context: Context, onFinish: (() -> Unit)? = null)
+    fun isPlaying(): Boolean
+    fun pause()
+    // Add other media control methods as needed
+    fun seekForward()
+    fun seekBackward()
+}
+ 
+``` 
+ 
+ 
+```VoiceTriggerDetector.kt    
+ 
+package com.example.hello_world.services.speech_to_text
+
+
+class VoiceTriggerDetector(
+    private val context: Context,
+    private val triggerWord: String,
+    private val onTriggerWordDetected: ((String) -> Unit),
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val latestPartialResult: MutableState<String?> 
+) : RecognitionListener {
+    private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    private var keepListening: Boolean = true
+
+    init {
+        speechRecognizer.setRecognitionListener(this)
+    }
+
+    fun startListening() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        speechRecognizer.startListening(intent)
+    }
+
+    fun stopListening() {
+        speechRecognizer.stopListening()
+        Log.d("VoiceTriggerDetector", "log: within the stoplistening function, speechRecognizer.stopListening() was just called")
+    }
+
+    override fun onReadyForSpeech(params: Bundle) {
+        // Handle when the SpeechRecognizer is ready to receive speech input
+    }
+
+    override fun onBeginningOfSpeech() {
+        // Handle when the user starts speaking
+    }
+
+    override fun onRmsChanged(rmsdB: Float) {
+        // Handle changes in the received sound level (RMS)
+    }
+
+    override fun onBufferReceived(buffer: ByteArray) {
+        // Handle more sound data being available
+    }
+
+    override fun onEndOfSpeech() {
+        // Handle when the user stops speaking
+    }
+
+    override fun onError(error: Int) {
+        // Handle errors that may occur during speech recognition
+    }
+
+    override fun onResults(results: Bundle) {
+        val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        Log.d("VoiceTriggerDetector", "Final Results: $matches")
+        matches?.let { processResults(it) }
+    
+        // Restart listening if the trigger word is not detected and the flag is set to keep listening
+        if (keepListening) {
+            mainHandler.post { startListening() }
+        }
+    }
+
+    override fun onPartialResults(partialResults: Bundle) {
+        val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+//        Log.d("VoiceTriggerDetector", "Partial Results: $matches")
+        Toast.makeText(context, "Partial Results: $matches", Toast.LENGTH_SHORT).show()
+    
+        // Set the latest partial result
+        latestPartialResult.value = matches?.firstOrNull()
+    
+        // Remove the startListening() call from here
+    }
+
+    override fun onEvent(eventType: Int, params: Bundle) {
+        // Handle any events that may occur during speech recognition
+    }
+
+
+
+    private fun processResults(matches: ArrayList<String>) {
+        for (result in matches) {
+            if (result.contains(triggerWord, ignoreCase = true)) {
+                // Trigger word detected, handle the event here
+                Log.d("VoiceTriggerDetector", "log: Trigger word detected")
+                val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces
+                onTriggerWordDetected(userMessage) // Pass the user message here
+                break
+            }
+        }
+    }
+ 
+``` 
+ 
+ 
+```AndroidTextToSpeechService.kt    
+ 
+package com.example.hello_world.services.text_to_speech
+
+
+
+class AndroidTextToSpeechService(
+    private val context: Context,
+    override val mediaPlaybackManager: MediaPlaybackManager,
+    private val onPlaybackFinished: () -> Unit
+) : TextToSpeechService, TextToSpeech.OnInitListener {
+    private var lastGeneratedAudioFilePath: String? = null
+    private var textToSpeech: TextToSpeech = TextToSpeech(context, this)
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = textToSpeech.setLanguage(Locale.getDefault())
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // Handle the case where the default language data or the language itself is not supported
+            }
+        } else {
+            // Handle the case where TextToSpeech initialization failed
+        }
+    }
+
+    override fun renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
+        val utteranceId = UUID.randomUUID().toString()
+//        Log.d("AndroidTextToSpeechService", "synthesizeToFile called with utteranceId: $utteranceId")
+        val uniqueFileName = "google_tts_${UUID.randomUUID()}.mp3"
+        val filePath = File(context.getExternalFilesDir(null), uniqueFileName).absolutePath
+
+        textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString())
+        textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String) {
+                onStart?.invoke()
+                Log.d("AndroidTextToSpeechService", "log: the onStart method with the speak function has been called")
+            }
+            override fun onDone(utteranceId: String) {
+//                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId")
+                Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath")
+                audioFilePathState.value = filePath
+                lastGeneratedAudioFilePath = filePath
+//                Log.d("AndroidTextToSpeechService","about to attempt to play audio file")
+//                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath
+//                Log.d("AndroidTextToSpeechService","just attempted to play audio file")
+                mediaPlaybackManager.playAudio(filePath, context, onFinish = onPlaybackFinished)
+            }
+            override fun onError(utteranceId: String) {
+                Log.d("AndroidTextToSpeechService", "log: onError called")
+            }
+        })
+//        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        lastGeneratedAudioFilePath = filePath
+        return filePath
+    }
+    override fun getAudioFilePath(): String {
+        return lastGeneratedAudioFilePath ?: ""
+    }
+    override fun stop() {
+        textToSpeech.stop()
+    }
+    override fun shutdown() {
+        textToSpeech.shutdown()
+    }
+}
+ 
+``` 
+ 
+ 
+```ElevenLabsTextToSpeechService.kt    
+ 
+package com.example.hello_world.services.text_to_speech
+
+
+class ElevenLabsTextToSpeechService(
+    private val apiKey: String,
+    private val voiceId: String,
+    private val context: Context,
+    override val mediaPlaybackManager: MediaPlaybackManager,
+    private val onPlaybackFinished: () -> Unit,
+    private val snackbarHostState: SnackbarHostState
+) : TextToSpeechService {
+    private var lastGeneratedAudioFilePath: String? = null
+    private val client = OkHttpClient.Builder()
+        .readTimeout(600, TimeUnit.SECONDS)
+        .writeTimeout(600, TimeUnit.SECONDS)
+        .connectTimeout(600, TimeUnit.SECONDS)
+        .build()
+
+    override fun renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
+        // Call the new renderSpeechInternal method
+        renderSpeechInternal(GlobalScope, text, onFinish, onStart, audioFilePathState)
+        return lastGeneratedAudioFilePath ?: ""
+    }
+
+    // New private method that accepts CoroutineScope
+    private fun renderSpeechInternal(coroutineScope: CoroutineScope, text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String {
+        val fileName = "elevenlabs_tts_${UUID.randomUUID()}.mp3"
+        val filePath = File(context.getExternalFilesDir(null), fileName).absolutePath
+
+        // Wrap API call inside withExponentialBackoff function
+        coroutineScope.launch {
+            withExponentialBackoff(context, snackbarHostState, apiRequest = { // Use snackbarHostState directly
+                val requestBody = createTtsRequestBody(text)
+                val request = buildTtsRequest(requestBody)
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    throw IOException("Unexpected code $response - ${response.body?.string()}")
+                }
+
+                handleTtsResponse(response, filePath, onStart, onFinish, audioFilePathState)
+            }, coroutineScope = coroutineScope)
+        }
+
+        lastGeneratedAudioFilePath = filePath
+        return filePath
+    }
+    override fun getAudioFilePath(): String {
+        return lastGeneratedAudioFilePath ?: ""
+    }
+
+    data class TtsRequestBody(
+        val text: String,
+        val voice_settings: Map<String, Int>
+    )
+    private fun createTtsRequestBody(text: String): RequestBody {
+        val requestBodyData = TtsRequestBody(
+            text = text,
+            voice_settings = mapOf("stability" to 0, "similarity_boost" to 0)
+        )
+
+        val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+        val jsonAdapter = moshi.adapter(TtsRequestBody::class.java)
+        val json = jsonAdapter.toJson(requestBodyData)
+
+        Log.d("ElevenLabsTextToSpeechService", "createTtsRequestBody called")
+        return RequestBody.create("application/json".toMediaType(), json)
+    }
+    private fun buildTtsRequest(requestBody: RequestBody): Request {
+        Log.d("ElevenLabsTextToSpeechService", "buildTtsRequest called")
+        return Request.Builder()
+            .url("https://api.elevenlabs.io/v1/text-to-speech/$voiceId")
+            .addHeader("accept", "audio/mpeg")
+            .addHeader("xi-api-key", apiKey)
+            .post(requestBody)
+            .build()
+    }
+    private fun handleTtsResponse(
+        response: Response,
+        filePath: String,
+        onStart: (() -> Unit)?,
+        onFinish: (() -> Unit)?, // Add this line
+        audioFilePathState: MutableState<String>
+    ) {
+        Log.d("ElevenLabsTextToSpeechService", "handleTtsResponse called")
+        if (response.isSuccessful) {
+            response.body?.byteStream()?.let { inputStream ->
+                FileOutputStream(File(filePath)).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+                Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath")
+                audioFilePathState.value = filePath
+                mediaPlaybackManager.playAudio(filePath, context, onFinish = {
+                    onFinish?.invoke()
+                    onPlaybackFinished()
+//                    voiceTriggerDetector.stopListening()
+                    Log.d(
+                        "ElevenLabsTextToSpeechService", "\nonFinish?.invoke()\n" +
+                                "            onPlaybackFinished()\nwas just called"
+                    )
+                }) // Pass onFinish here
+            }
+        } else {
+            // Handle the unsuccessful response
+            // ...
+        }
+        mediaPlaybackManager.playAudio(filePath, context, onFinish = {
+            onFinish?.invoke()
+            onPlaybackFinished()
+            Log.d(
+                "ElevenLabsTextToSpeechService", "\nonFinish?.invoke()\n" +
+                        "            onPlaybackFinished()\nwas just called"
+            )
+        }) // Pass onFinish here
+    }
+
+    override fun stop() {
+        // Implement stop functionality if needed
+    }
+    override fun shutdown() {
+        // Implement shutdown functionality if needed
+    }
+ 
+``` 
+ 
+ 
+```TextToSpeechService.kt    
+ 
+package com.example.hello_world.services.text_to_speech
+
+
+
+interface TextToSpeechService {
+    val mediaPlaybackManager: MediaPlaybackManager
+    fun renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
+    fun stop()
+    fun getAudioFilePath(): String
+    fun shutdown()
+}
+ 
+``` 
+ 
+ 
+```ConfigPackScreen.kt    
+ 
+
+
+@Composable
+fun ConfigPackScreen(configPacksViewModel: ConfigPacksViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
+    val editedProfile = configPacksViewModel.editedConfigPack.value // Access the value property here
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Edit Settings", modifier = Modifier.padding(16.dp))
+
+        OutlinedTextField(
+            value = editedProfile.name, // Access the name property from the value
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileName(newValue) }, // Use newValue instead of it
+            label = { Text("Profile Name") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+
+        OutlinedTextField(
+            value = editedProfile.systemMessage.takeIf { it.isNotEmpty() } ?: "I am an AI assistant.",
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileSystemMessage(newValue) },
+            label = { Text("System Message") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Text("Max Length (20 to 2000)", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+        Slider(
+            value = editedProfile.maxLength.toFloat(),
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
+            valueRange = 20f..2000f,
+            steps = 5,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Text("Temperature", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+        Slider(
+            value = editedProfile.temperature.toFloat(),
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Text("Frequency Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+        Slider(
+            value = editedProfile.frequencyPenalty.toFloat(),
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Text("Presence Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+        Slider(
+            value = editedProfile.presencePenalty.toFloat(),
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
+            valueRange = 0f..1f,
+            steps = 10,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+        Text("Model", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+        Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+            val models = listOf("gpt-3.5-turbo", "gpt-4")
+            models.forEach { model ->
+                Row(
+                    Modifier
+                        .padding(end = 16.dp)
+                        .selectable(
+                            selected = (model == editedProfile.model),
+                            onClick = { configPacksViewModel.updateEditedProfileModel(model) }
+                        )
+                ) {
+                    RadioButton(
+                        selected = (model == editedProfile.model),
+                        onClick = { configPacksViewModel.updateEditedProfileModel(model) }
+                    )
+                    Text(
+                        text = model,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
+
+
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(onClick = {
+                configPacksViewModel.saveEditedProfile()
+                onSettingsSaved()
+                Log.d("EditSettingsScreen", "Save button clicked")
+            }) {
+                Text("Save")
+            }
+
+            Button(onClick = {
+                onCancel()
+                Log.d("EditSettingsScreen", "Cancel button clicked")
+            }) {
+                Text("Cancel")
+            }
+        }
+    }
+    //display the properties of the profile
+    
+ 
+``` 
+ 
+ 
+```ConfigPacksScreen.kt    
+ 
+package com.example.hello_world
+
+
+@Composable
+fun ConfigPacksScreen(configPacksViewModel: ConfigPacksViewModel, onProfileApplied: () -> Unit, navController: NavController) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Current Settings", modifier = Modifier.padding(16.dp))
+        CurrentSettings(configPacksViewModel.selectedConfigPack)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Select a ConfigPack", modifier = Modifier.padding(16.dp))
+
+        configPacksViewModel.profiles.forEach { profile ->
+            Card(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth()
+                    .clickable { configPacksViewModel.applyProfile(profile) }
+                    .shadow(elevation = 4.dp) // Add shadow with the 4.dp elevation
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = profile.name)
+                    Button(onClick = {
+                        Log.d("SettingsScreen", "Apply button clicked for ConfigPack: $profile")
+                        configPacksViewModel.applyProfile(profile)
+                        onProfileApplied()
+                    }) {
+                        Text("Apply")
+                    }
+                    Button(
+                        onClick = {
+                            Log.d("SettingsScreen", "Edit button clicked for ConfigPack: $profile")
+                            navController.navigate("edit-settings")
+                        }
+                    ) {
+                        Text("Edit")
+                    }
+                    if (profile !in configPacksViewModel.defaultConfigPacks) {
+                        Button(onClick = {
+                            Log.d("SettingsScreen", "Delete button clicked for ConfigPack: $profile")
+                            configPacksViewModel.deleteProfile(profile)
+                        }) {
+                            Text("Delete")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CurrentSettings(selectedConfigPack: ConfigPack?) {
+    selectedConfigPack?.let { configpack ->
+        Card(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth()
+                .shadow(elevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+            ) {
+                Text(text = "Model: ${configpack.model}")
+                Text(text = "System Message: ${configpack.systemMessage}")
+                Text(text = "Max Length: ${configpack.maxLength}")
+                Text(text = "Temperature: ${configpack.temperature}")
+                Text(text = "Frequency Penalty: ${configpack.frequencyPenalty}")
+                Text(text = "Presence Penalty: ${configpack.presencePenalty}")
+            }
+        }
+    }
+ 
+``` 
+ 
+ 
+```ConfigPacksViewModel.kt    
+ 
+package com.example.hello_world.ui.ConfigPacks.viewmodel
+
+
+
+class ConfigPacksViewModel(private val configPackRepository: IConfigPackRepository) : ViewModel() {
+
+    val defaultConfigPacks = listOf(
+        ConfigPack(UUID.randomUUID(),"GPT3.5", "I am an AI assistant named Jake.", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"),
+        ConfigPack(UUID.randomUUID(),"GPT4", "I am here to help you today. What do you need?", 1500, 0.8, 0.1, 0.2, "gpt-4")
+    )
+    val editedConfigPack = mutableStateOf(ConfigPack(UUID.randomUUID(), "default","I am an AI assistant", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
+
+    fun updateEditedProfileName(name: String) {
+        Log.d("SettingsViewModel", "Profile name updated: $name")
+        editedConfigPack.value = editedConfigPack.value.copy(name = name)
+    }
+    var profiles by mutableStateOf(defaultConfigPacks)
+//    var selectedProfile by mutableStateOf<Profile?>(null)
+    var selectedConfigPack by mutableStateOf<ConfigPack?>(defaultConfigPacks.first())
+
+    fun saveEditedProfile() {
+        if (editedConfigPack.value.name.isNotBlank()) {
+            Log.d("SettingsViewModel", "Saving edited profile: ${editedConfigPack.value}")
+            saveCustomProfile(editedConfigPack.value)
+        }
+    }
+
+    suspend fun addDefaultConfigPacksIfNeeded() {
+        val existingConfigPacks = configPackRepository.getAllConfigPacks()
+        defaultConfigPacks.forEach { defaultConfigPack ->
+            if (existingConfigPacks.none { it.name == defaultConfigPack.name }) {
+                configPackRepository.addConfigPack(defaultConfigPack)
+            }
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            addDefaultConfigPacksIfNeeded()
+            loadConfigPacks()
+        }
+    }
+
+    private suspend fun loadConfigPacks() {
+        Log.d("ConfigPacksViewModel", "Loading config packs from repository")
+        profiles = configPackRepository.getAllConfigPacks()
+        Log.d("ConfigPacksViewModel", "Loaded config packs: $profiles")
+    }
+
+    fun updateEditedProfileSystemMessage(systemMessage: String) {
+        Log.d("SettingsViewModel", "System message updated: $systemMessage")
+        editedConfigPack.value = editedConfigPack.value.copy(systemMessage = systemMessage)
+    }
+
+    fun updateEditedProfileMaxLength(maxLength: Int) {
+        Log.d("SettingsViewModel", "Max length updated: $maxLength")
+        editedConfigPack.value = editedConfigPack.value.copy(maxLength = maxLength)
+    }
+
+
+    fun updateEditedProfileTemperature(temperature: Double) {
+        Log.d("SettingsViewModel", "Temperature updated: $temperature")
+        editedConfigPack.value = editedConfigPack.value.copy(temperature = temperature)
+    }
+
+    fun updateEditedProfileFrequencyPenalty(frequencyPenalty: Double) {
+        Log.d("SettingsViewModel", "Frequency Penalty updated: $frequencyPenalty")
+        editedConfigPack.value = editedConfigPack.value.copy(frequencyPenalty = frequencyPenalty)
+    }
+
+    fun updateEditedProfilePresencePenalty(presencePenalty: Double) {
+        Log.d("SettingsViewModel", "Presence Penalty updated: $presencePenalty")
+        editedConfigPack.value = editedConfigPack.value.copy(presencePenalty = presencePenalty)
+    }
+
+    fun updateEditedProfileModel(model: String) {
+        Log.d("SettingsViewModel", "Model updated: $model")
+        editedConfigPack.value = editedConfigPack.value.copy(model = model)
+    }
+
+    fun saveCustomProfile(configPack: ConfigPack) {
+        Log.d("SettingsViewModel", "Saving profile: $configPack")
+        viewModelScope.launch {
+            configPackRepository.addConfigPack(configPack)
+            loadConfigPacks()
+        }
+    }
+    fun deleteProfile(configPack: ConfigPack) {
+        Log.d("SettingsViewModel", "Deleting profile: $configPack")
+        viewModelScope.launch {
+            configPackRepository.removeConfigPack(configPack)
+            profiles = configPackRepository.getAllConfigPacks()
+        }
+    }
+
+    fun applyProfile(configPack: ConfigPack) {
+        Log.d("SettingsViewModel", "Applying profile: $configPack")
+        selectedConfigPack = configPack
+    }
+}
+
+class ConfigPacksViewModelFactory(
+    private val context: Context
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ConfigPacksViewModel::class.java)) {
+            return ConfigPacksViewModel(LocalRoomConfigPackRepository(context) as IConfigPackRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+ 
+``` 
+ 
+ 
+```MediaControls.kt    
+ 
+package com.example.hello_world
+
+
+
+
+@Composable
+fun MediaControls(
+    onPlayPause: () -> Unit, // Function to call when the play/pause button is pressed
+    onSeekForward: () -> Unit, // Function to call when the seek forward button is pressed
+    onSeekBackward: () -> Unit // Function to call when the seek backward button is pressed
+) {
+    var isPlaying by remember { mutableStateOf(false) } // Add the state variable isPlaying
+
+    Row {
+        IconButton(onClick = {
+            onPlayPause() // Call the onPlayPause function
+            isPlaying = !isPlaying // Toggle the isPlaying state
+        }) {
+            if (isPlaying) {
+                Icon(Icons.Filled.AccountBox, contentDescription = "Pause") // Show the pause icon
+            } else {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Play") // Show the play icon
+            }
+        }
+        IconButton(onClick = onSeekBackward) { // Create a button for the seek backward button
+            Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Seek Backward") // Show the seek backward icon
+        }
+        IconButton(onClick = onSeekForward) { // Create a button for the seek forward button
+            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Seek Forward") // Show the seek forward icon
+        }
+
+    }
+ 
+``` 
+ 
+ 
+```MessageCard.kt    
+ 
+package com.example.hello_world
+
+
+
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
+fun MessageCard( // Composable for the message card
+    message: ConversationMessage, // The message to show
+    onPlayAudio: (String) -> Unit, // Function to call when the play audio button is pressed
+    onCardClicked: () -> Unit, // this is what it does if you click on the card
+    mediaPlaybackManager: MediaPlaybackManager,
+    context: Context,
+    onDeleteClicked: () -> Unit,
+    onEditClicked: (ConversationMessage, String) -> Unit
+) {
+    val isEditing = remember { mutableStateOf(false) }
+    val editedMessage = remember { mutableStateOf(message.message) }
+//    Log.d("MessageCard", "Message: $message")
+    Card( // Create a card for the message
+        modifier = Modifier // Set the modifier for the card
+            .clickable { onCardClicked() } //the card is clickable!
+            .padding(8.dp) // Add padding to the card
+            .fillMaxWidth() // Make the card fill the width of the screen
+    ) {
+        Column( // Create a column for the message
+            modifier = Modifier // Set the modifier for the column
+                .padding(16.dp) // Add padding to the column
+        ) {
+            Text(text = message.sender, fontWeight = FontWeight.Bold) // Show the sender of the message
+            Spacer(modifier = Modifier.height(4.dp)) // Add a spacer to add some space between the sender and the message
+            if (isEditing.value) {
+                TextField(
+                    value = editedMessage.value,
+                    onValueChange = { editedMessage.value = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                SelectionContainer {
+                    Text(text = message.message)
+                }
+            }
+            if (isEditing.value) { // add this line
+                Row { // add this line
+                    Button( // add this line
+                        onClick = { // add this line
+                            onEditClicked(message, editedMessage.value) // add this line
+                            isEditing.value = false // add this line
+                        } // add this line
+                    ) { // add this line
+                        Text("Save") // add this line
+                    } // add this line
+                    Button( // add this line
+                        onClick = { // add this line
+                            isEditing.value = false // add this line
+                        } // add this line
+                    ) { // add this line
+                        Text("Cancel") // add this line
+                    } // add this line
+                } // add this line
+            }
+            Spacer(modifier = Modifier.height(8.dp)) // Add a spacer to add some space between the message and the media controls
+            Row { // Add this row
+                IconButton(onClick = { isEditing.value = !isEditing.value }) {
+                    Icon(Icons.Filled.Create, contentDescription = "Edit message")
+                }
+                IconButton(onClick = onDeleteClicked) {
+                    Icon(Icons.Filled.Close, contentDescription = "Delete message")
+                }
+            }
+            MediaControls( // Show the media controls
+                onPlayPause = { // When the play/pause button is pressed
+                    if (mediaPlaybackManager.isPlaying()) {
+                        Log.d("MessageCard", "Pausing audio from file: ${message.audioFilePath.value}")
+                        mediaPlaybackManager.pause()
+                    } else {
+                        Log.d("MessageCard", "Resuming audio from file: ${message.audioFilePath.value}")
+                        mediaPlaybackManager.playAudio(message.audioFilePath.value, context)
+                    }
+                },
+                onSeekForward = { mediaPlaybackManager.seekForward() }, // Pass the seekForward callback
+                onSeekBackward = { mediaPlaybackManager.seekBackward() } // Pass the seekBackward callback
+            )
+        }
+    }
+ 
+``` 
+ 
+ 
+```HomeScreen.kt    
+ 
+package com.example.hello_world
+
+
+@Composable
+fun HomeScreen(
+    onSessionsClicked: () -> Unit,
+    onConfigPacksClicked: () -> Unit
+) {
+    Column {
+        Button(onClick = onSessionsClicked) {
+            Text("Sessions")
+        }
+        Button(onClick = onConfigPacksClicked) {
+            Text("Config Packs")
+        }
+    }
+ 
+``` 
+ 
+ 
+```HomeViewModel.kt    
+ 
+package com.example.hello_world.ui.home.viewmodel
+
+
+class HomeViewModel : ViewModel() {
+    // Any future logic related to the home screen can be added here
+ 
+``` 
+ 
+ 
+```SavedConversationsScreen.kt    
+ 
+package com.example.hello_world
+
+//import androidx.compose.material.CardElevation
+
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
+fun SavedConversationsScreen(
+    viewModel: SavedConversationsViewModel,
+    onConversationSelected: (UUID) -> Unit,
+    onBack: () -> Unit,
+    onNewConversationClicked: () -> Unit
+) {
+    val savedConversations by viewModel.savedConversations.collectAsState(initial = emptyList<Conversation>())
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Saved Conversations") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNewConversationClicked) {
+                Icon(Icons.Default.Add, contentDescription = "New Conversation")
+            }
+        }
+    ) {
+        if (savedConversations.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No saved conversations")
+            }
+        } else {
+            LazyColumn(modifier = Modifier.padding(8.dp)) {
+                items(savedConversations.size) { index ->
+                    val conversation = savedConversations[index]
+                    ConversationCard(
+                        conversation = conversation,
+                        onClick = {
+                            Log.d("SavedConversationsScreen", "Selected conversation ID: ${conversation.id}")
+                            onConversationSelected(conversation.id)
+                        },
+                        onDeleteClicked = { viewModel.deleteConversation(conversation.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardElevation(
+    modifier: Modifier = Modifier,
+    elevation: Dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.graphicsLayer(
+            shadowElevation = elevation.value,
+            shape = RoundedCornerShape(4.dp),
+            clip = true
+        ),
+        content = content
+    )
+}
+
+@Composable
+fun ConversationCard(
+    conversation: Conversation,
+    onClick: () -> Unit,
+    onDeleteClicked: () -> Unit
+) {
+    CardElevation(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .clickable { onClick() },
+        elevation = 4.dp
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(conversation.title)
+            Text("Date started: ${formatDate(conversation.dateStarted)}")
+            Text("Date last saved: ${formatDate(conversation.dateLastSaved)}")
+            Text("Message count: ${conversation.messageCount}")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onDeleteClicked) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
+            }
+        }
+    }
+}
+
+fun formatDate(timestamp: Long): String {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy, HH:mm", Locale.getDefault())
+    return dateFormat.format(Date(timestamp))
+ 
+``` 
+ 
+ 
+```SavedConversationsViewModel.kt    
+ 
+package com.example.hello_world.ui.saved_conversations.viewmodel
+
+
+class SavedConversationsViewModel(
+    private val conversationRepository: IConversationRepository
+) : ViewModel() {
+    private val _savedConversations = MutableStateFlow<List<Conversation>>(emptyList())
+    val savedConversations: StateFlow<List<Conversation>> = _savedConversations
+    private val conversationsManager = ConversationsManager(conversationRepository)
+
+    init {
+        viewModelScope.launch {
+            _savedConversations.value = loadSavedConversations()
+        }
+    }
+
+    suspend fun createNewConversation(): UUID {
+        val newConversation = Conversation(configPack = ConfigPack.defaultConfigPack)
+        conversationsManager.saveConversation(newConversation) // Modify this line
+        return newConversation.id
+    }
+
+    private suspend fun loadSavedConversations(): List<Conversation> {
+        // Replace the TODO with the actual implementation
+        return conversationRepository.loadAllConversations()
+    }
+
+    // Implement methods for deleting saved conversations
+    fun deleteConversation(conversationId: UUID) {
+        viewModelScope.launch {
+            conversationRepository.deleteConversation(conversationId)
+            _savedConversations.value = loadSavedConversations()
+        }
+    }
+ 
+``` 
+ 
+ 
+```SessionScreen.kt    
+ 
+package com.example.hello_world
+
+
+
+@Composable
+@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterialApi::class)
+fun SessionScreen(
+    sessionViewModel: SessionViewModel,
+    configPacksViewModel: ConfigPacksViewModel,
+    onSettingsClicked: () -> Unit,
+    textToSpeechServiceState: MutableState<TextToSpeechService>,
+    mediaPlaybackManager: MediaPlaybackManager,
+    navController: NavController,
+    snackbarHostState: SnackbarHostState
+) {
+    DisposableEffect(Unit) {
+
+        Log.d("SessionScreen", "sessionViewModel.conversationId: ${sessionViewModel.conversationId}")
+        sessionViewModel.conversationId?.let {
+            Log.d("SessionScreen", "Before `sessionViewModel.loadConversation(it)` within the sessionViewModel.conversationId?.let {/.../} block ")
+            sessionViewModel.loadConversation(it)
+            Log.d("SessionScreen", "After `sessionViewModel.loadConversation(it)` within the sessionViewModel.conversationId?.let {/.../} block ")
+        }
+        onDispose { }
+    }
+
+    val shareTextLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+        // You can handle the result of the sharing action here if needed
+    }
+    val context = LocalContext.current
+    val scrollToBottomClicked = remember { mutableStateOf(false) } // Create a mutable state for the scroll to bottom button
+    val conversationTextState = remember { mutableStateOf("") }
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+
+        val lazyListState = rememberLazyListState()
+
+        val messages = sessionViewModel.conversationMessages
+        Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
+        LaunchedEffect(Unit) {
+            if (scrollToBottomClicked.value) {
+                val targetIndex = messages.size - 1
+                try {
+                    lazyListState.animateScrollToItem(targetIndex)
+                } catch (e: Exception) {
+                    Log.e("SessionScreen", "Error while animating scroll to item", e)
+                }
+                scrollToBottomClicked.value = false
+            }
+            Log.d("SessionScreen", "Current messages in session screen: $messages")
+        }
+        val maxHeight = constraints.maxHeight
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(((maxHeight.dp - 64.dp).coerceAtLeast(0.dp))) // Set the height of the lazy column to the maximum height of the screen minus the height of the buttons
+            ) {
+                items(messages) { message ->
+                    MessageCard(
+                        message = message,
+                        onPlayAudio = { audioFilePath ->
+                            sessionViewModel.mediaPlaybackManager.playAudio(audioFilePath, context)
+                        },
+                        onCardClicked = {
+                            Log.d("SessionScreen", "Card with index ${messages.indexOf(message)} clicked")
+                        },
+                        mediaPlaybackManager = mediaPlaybackManager,
+                        context = context,
+                        onDeleteClicked = {
+                            Log.d("SessionScreen", "Delete button clicked for message at index ${messages.indexOf(message)}")
+                            sessionViewModel.deleteMessage(messages.indexOf(message))
+                        },
+                        onEditClicked = { message, editedMessage ->
+                            val index = messages.indexOf(message)
+                            sessionViewModel.updateMessage(index, message.copy(message = editedMessage))
+                            Log.d("SessionScreen", "Edit button clicked for message at index ${messages.indexOf(message)}")
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    if (textToSpeechServiceState.value is AndroidTextToSpeechService) {
+                        textToSpeechServiceState.value = ElevenLabsTextToSpeechService(
+                            apiKey = "82b94d982c1018cb379c0acb629d473c",
+                            voiceId = "TxGEqnHWrfWFTfGW9XjX",
+                            context = context,
+                            mediaPlaybackManager = mediaPlaybackManager,
+                            onPlaybackFinished = { sessionViewModel.startListening() },
+                            snackbarHostState = snackbarHostState // Pass snackbarHostState here
+                        )
+                    } else {
+                        textToSpeechServiceState.value = AndroidTextToSpeechService(
+                            context = context,
+                            mediaPlaybackManager = mediaPlaybackManager,
+                            onPlaybackFinished = { sessionViewModel.startListening() }
+                        )
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(if (textToSpeechServiceState.value is AndroidTextToSpeechService) "Use Eleven Labs TTS" else "Use Google TTS")
+            }
+            Button(
+                onClick = {
+                    if (sessionViewModel.isListening) {
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.stopListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                    } else {
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.startListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")
+            }
+            Button(
+                onClick = onSettingsClicked,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Settings")
+            }
+            Button(
+                onClick = {
+                    scrollToBottomClicked.value = true
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Scroll to Bottom")
+            }
+            Button(
+                onClick = { navController.navigate("sessions") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Saved Conversations")
+            }
+            Button(
+                onClick = { sessionViewModel.saveCurrentConversation() },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Save Conversation")
+            }
+            Button(
+                onClick = {
+                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { it.message }
+                    conversationTextState.value = conversationText
+
+                    // Add this block of code to create and launch the share intent
+                    val sendIntent: Intent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, conversationText)
+                        type = "text/plain"
+                    }
+
+                    val shareIntent = Intent.createChooser(sendIntent, null)
+                    shareTextLauncher.launch(shareIntent)
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Share Conversation Text")
+            }
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+ 
+``` 
+ 
+ 
+```SessionViewModel.kt    
+ 
+package com.example.hello_world.ui.session.viewmodel
+
+
+class SessionViewModel(
+    var conversationId: UUID?,
+    val context: Context,
+    val configPacksViewModel: ConfigPacksViewModel,
+    val openAiApiService: OpenAiApiService,
+    val conversationRepository: IConversationRepository,
+    var textToSpeechServiceState: MutableState<TextToSpeechService>?,
+    private val snackbarHostState: SnackbarHostState
+) : ViewModel() {
+
+
+    val latestPartialResult = mutableStateOf<String?>(null)
+    val _isAppSpeaking = mutableStateOf(false)
+    val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
+    private val conversationsManager = ConversationsManager(conversationRepository)
+    private val conversationManager = ConversationManager(Conversation(configPack = ConfigPack.defaultConfigPack))
+    val isAppSpeaking: Boolean get() = _isAppSpeaking.value
+    val showSaveDialog = mutableStateOf(false)
+    val saveDialogTitle = mutableStateOf("")
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
+
+    val conversationMessages = mutableStateListOf<ConversationMessage>().apply {
+        addAll(conversationManager.conversation.messages)
+    }
+    private val _isListening = mutableStateOf(false)
+    val isListening: Boolean get() = _isListening.value
+
+
+    fun loadInitialConversation(conversationId: UUID? = null) {
+        Log.d("SessionViewModel", "fun loadInitialConversation from before the `viewModelScope.launch` block, loadInitialConversation called with conversationId: $conversationId")
+        viewModelScope.launch {
+            Log.d("SessionViewModel", "fun loadInitialConversation from within the `viewModelScope.launch` block, loadInitialConversation called with conversationId: $conversationId")
+            val loadedConversation = if (conversationId != null) {
+                conversationsManager.loadConversation(conversationId)
+            } else {
+                null
+            }
+            if (loadedConversation != null) {
+                Log.d("SessionViewModel", "fun loadInitialConversation Loaded conversation: $loadedConversation")
+                conversationManager.conversation = loadedConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
+            } else {
+                // Use the default profile for the initial conversation
+                val initialConversation = Conversation(configPack = ConfigPack.defaultConfigPack)
+                conversationManager.conversation = initialConversation
+                conversationMessages.clear()
+                conversationMessages.addAll(conversationManager.conversation.messages)
+            }
+            Log.d("SessionViewModel", "fun loadInitialConversation conversationMessages after loadInitialConversation: $conversationMessages")
+        }
+    }
+
+
+    fun saveCurrentConversation() {
+        viewModelScope.launch {
+            conversationsManager.saveConversation(conversationManager.conversation)
+        }
+    }
+
+    fun startListening() {
+        voiceTriggerDetector.startListening()
+        _isListening.value = true
+        Log.d("SessionViewModel", "fun startListening startListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+    }
+    private suspend fun sendUserMessageToOpenAi(userMessage: String) {
+
+
+        stopListening()
+        val audioFilePathState = mutableStateOf("")
+        // Add user message to the conversation state
+
+
+        val userMessageObj = ConversationMessage("User", userMessage, audioFilePathState)
+        conversationManager.addMessage(userMessageObj)
+        conversationMessages.add(userMessageObj)
+
+
+        val responseText = withExponentialBackoff(context, snackbarHostState, { // Pass snackbarHostState directly
+            openAiApiService.sendMessage(conversationManager.conversation.messages)
+        }, viewModelScope, onRetry = {
+            viewModelScope.launch {
+                sendUserMessageToOpenAi(userMessage)
+            }
+        }) ?: return
+        Log.d("SessionViewModel", "Received response from OpenAI API: $responseText")
+
+
+        val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
+        conversationManager.addMessage(assistantMessageObj)
+        conversationMessages.add(assistantMessageObj)
+        autosaveConversation()
+
+        textToSpeechServiceState?.value?.renderSpeech(responseText.replace("\n", " "), onFinish = {
+            if (conversationManager.conversation.messages.isNotEmpty()) {
+            mainHandler.post {
+                _isAppSpeaking.value = false
+                startListening()
+                Log.d("SessionViewModel", "log: startListening called associated with onFinish")
+            }
+        }}, onStart = {
+            mainHandler.post {
+                stopListening()
+                Log.d("SessionViewModel", "log: stopListening called associated with onStart")
+            }
+        }, audioFilePathState = conversationManager.conversation.messages.last().audioFilePath)
+        _isAppSpeaking.value = true
+    }
+
+    fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
+        conversationManager.updateMessage(index, updatedMessage)
+        conversationMessages[index] = updatedMessage
+        autosaveConversation()
+    }
+
+    fun deleteMessage(index: Int) {
+        viewModelScope.launch {
+            conversationManager.deleteMessage(index)
+            conversationMessages.removeAt(index)
+            autosaveConversation()
+        }
+    }
+
+    private fun autosaveConversation() {
+        viewModelScope.launch {
+            conversationsManager.saveConversation(conversationManager.conversation)
+        }
+    }
+
+    private fun startPeriodicListeningCheck() {
+        mainHandler.postDelayed({
+            if (_isListening.value && _isAppSpeaking.value) {
+                Log.d("SessionViewModel", "log: Periodic check - Restarting listening, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+                startListening()
+            }
+            startPeriodicListeningCheck()
+        }, 3000) // Check every 3 seconds
+    }
+
+    fun stopListening() {
+        voiceTriggerDetector.stopListening()
+        Log.d("SessionViewModel", "stopListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+        _isListening.value = false
+    }
+
+    fun onTriggerWordDetected(userMessage: String) {
+        // Add user message to the conversation state
+        Log.d("SessionViewModel", "log: onTriggerWordDetected called")
+
+        // Stop listening
+        voiceTriggerDetector.stopListening()
+        Log.d("SessionViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+
+        // Send the user message to OpenAI API and process the response
+        viewModelScope.launch {
+            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
+        }
+        autosaveConversation()
+    }
+
+    fun loadConversation(conversationId: UUID) {
+    Log.d("SessionViewModel", "fun loadConversation Loaded conversation ID: ${conversationId}")
+        viewModelScope.launch {
+            loadInitialConversation(conversationId)
+        }
+    }
+
+    init {
+        Log.d("SessionViewModel", "init about to run `loadInitialConversation(conversationId)`")
+        loadInitialConversation(conversationId)
+        startPeriodicListeningCheck()
+    }
+
+    fun loadConversationWithId(conversationId: UUID) {
+        this.conversationId = conversationId
+        loadInitialConversation()
+    }
+
+
+    fun saveConversation() {
+        showSaveDialog.value = true
+    }
+
+    fun onSaveDialogConfirmed() {
+        if (saveDialogTitle.value.isNotBlank()) {
+            viewModelScope.launch {
+                val updatedConversation = conversationManager.conversation.copy(title = saveDialogTitle.value)
+                conversationsManager.saveConversation(conversationManager.conversation)
+                conversationManager.conversation = updatedConversation
+            }
+            showSaveDialog.value = false
+            saveDialogTitle.value = ""
+        }
+    }
+
+    fun onSaveDialogDismissed() {
+        showSaveDialog.value = false
+        saveDialogTitle.value = ""
+    }
+}
+
+class SessionViewModelFactory(
+    private val conversationId: UUID?,
+    private val context: Context,
+    private val configPacksViewModel: ConfigPacksViewModel,
+    private val openAiApiService: OpenAiApiService,
+    private val conversationRepository: IConversationRepository,
+    private val textToSpeechServiceState: MutableState<TextToSpeechService>,
+    private val snackbarHostState: SnackbarHostState
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(SessionViewModel::class.java)) {
+            return SessionViewModel(
+                conversationId,
+                context,
+                configPacksViewModel,
+                openAiApiService,
+                conversationRepository,
+                textToSpeechServiceState,
+                snackbarHostState
+            ) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+ 
+``` 
+ 
+ 
+```Color.kt    
+ 
+package com.example.hello_world.ui.theme
+
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+ 
+``` 
+ 
+ 
+```Theme.kt    
+ 
+package com.example.hello_world.ui.theme
+
+
+private val DarkColorScheme = darkColorScheme(
+        primary = Purple80,
+        secondary = PurpleGrey80,
+        tertiary = Pink80
+)
+
+private val LightColorScheme = lightColorScheme(
+        primary = Purple40,
+        secondary = PurpleGrey40,
+        tertiary = Pink40
+
+        /* Other default colors to override
+    background = Color(0xFFFFFBFE),
+    surface = Color(0xFFFFFBFE),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F),
+    */
+)
+
+@Composable
+fun HelloworldTheme(
+        darkTheme: Boolean = isSystemInDarkTheme(),
+        // Dynamic color is available on Android 12+
+        dynamicColor: Boolean = true,
+        content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+        }
+    }
+
+    MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+    )
+ 
+``` 
+ 
+ 
+```Type.kt    
+ 
+package com.example.hello_world.ui.theme
+
+
+// Set of Material typography styles to start with
+val Typography = Typography(
+        bodyLarge = TextStyle(
+                fontFamily = FontFamily.Default,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.5.sp
+        )
+        /* Other default text styles to override
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+    */
+ 
+``` 
+ 
+ 
+```ApiUtils.kt    
+ 
+package com.example.hello_world
+
+
+
+
+suspend fun <T> withExponentialBackoff(
+    context: Context,
+    snackbarHostState: SnackbarHostState,
+    apiRequest: suspend () -> T,
+    coroutineScope: CoroutineScope,
+    onRetry: suspend () -> Unit = {}
+): T? {
+    var result: T? = null
+    var currentDelay = 1000L // Initial delay
+    val maxRetries = 3
+    var lastErrorMessage: String? = null
+
+    for (retryCount in 0 until maxRetries) {
+        try {
+            result = apiRequest()
+            break
+        } catch (e: IOException) {
+            lastErrorMessage = e.message
+            if (retryCount < maxRetries - 1) {
+                coroutineScope.launch(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Network error, retrying... (${retryCount + 1})",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                delay(currentDelay)
+                currentDelay *= 2
+            } else {
+                Log.d("log: withExponentialBackoff", "Network error: $lastErrorMessage")
+                val snackbarResult = snackbarHostState.showSnackbar(
+                    message = "Network error: $lastErrorMessage",
+                    actionLabel = "Retry",
+                    duration = SnackbarDuration.Indefinite
+                )
+                if (snackbarResult == SnackbarResult.ActionPerformed) {
+                    onRetry()
+                }
+            }
+        }
+    }
+    return result
+}
+ 
+``` 
+ 
+ 
+```UmlGenerator.kt    
+ 
+//package com.example.hello_world.utils
+//
+//import com.example.hello_world.models.ConversationMessage
+//import com.example.hello_world.models.ConfigPack
+//import androidx.compose.material3.ExperimentalMaterial3Api
+//import androidx.compose.runtime.Composable
+//import com.example.hello_world.*
+//import com.example.hello_world.MainActivity
+//import com.example.hello_world.MainViewModel
+//import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManager
+//import io.github.kelvindev15.kotlin2plantuml.plantuml.ClassDiagram
+//import io.github.kelvindev15.kotlin2plantuml.plantuml.Configuration
+//import java.io.File
+//import kotlin.reflect.KVisibility
+//
+//@ExperimentalMaterial3Api
+//@Composable
+//fun mains() {
+//    generateUml()
+//}
+//@ExperimentalMaterial3Api
+//@Composable
+//fun generateUml() {
+//    // List all the classes in the package
+//    val classesInPackage = listOf(
+//        AndroidMediaPlaybackManager::class,
+//        AndroidTextToSpeechService::class,
+//        Conversation::class,
+//        ConversationManager::class,
+//        com.example.hello_world.models.ConversationMessage::class,
+//        ConversationsManager::class,
+////        EditSettingsScreen::class,
+//        ElevenLabsTextToSpeechService::class,
+//        IConversationRepository::class,
+//        LocalConversationDao::class,
+//        LocalConversationDatabase::class,
+//        LocalConversationEntity::class,
+//        LocalConversationMessageEntity::class,
+//        LocalRoomConversationRepository::class,
+//        MainActivity::class,
+////        MainScreen::class,
+//        MainViewModel::class,
+////        MediaControls::class,
+//        MediaPlaybackManager::class,
+////        MessageCard::class,
+//        OpenAiApiResponse::class,
+//        OpenAiApiService::class,
+//        com.example.hello_world.models.ConfigPack::class,
+////        SavedConversationsScreen::class,
+//        SavedConversationsViewModel::class,
+////        SettingsScreen::class,
+//        SettingsViewModel::class,
+//        VoiceTriggerDetector::class,
+//        TextToSpeechService::class
+//
+//        )
+//
+//    // Configure the visibility settings
+//    val configuration = Configuration(maxFieldVisibility = KVisibility.PRIVATE, maxMethodVisibility = KVisibility.PUBLIC)
+//
+//    // Create a ClassDiagram with all the classes in the package
+//    val classDiagram = ClassDiagram(*classesInPackage.toTypedArray(), configuration = configuration)
+//
+//    // Generate the PlantUML code for the class diagram
+//    val myPlantUML = classDiagram.plantUml()
+//
+//    // Save contents to a file
+//    File("output.puml").writeText("$myPlantUML")
+//}
+ 
+``` 
+ 
