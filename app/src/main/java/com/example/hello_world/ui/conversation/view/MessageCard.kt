@@ -31,6 +31,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.example.hello_world.services.media_playback.MediaPlaybackManager
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
 
 @Composable
@@ -46,21 +48,26 @@ fun MessageCard(
     onEditClicked: (ConversationMessage, String) -> Unit,
     onShareClicked: (String, Uri?) -> Unit // Add this parameter
 ) {
+    val isPlayingState = remember { mutableStateOf(false) }
+    var isPlaying: Boolean by object : ReadWriteProperty<Any?, Boolean> {
+        override fun getValue(thisRef: Any?, property: KProperty<*>) = isPlayingState.value
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: Boolean) { isPlayingState.value = value }
+    }
     val isEditing = remember { mutableStateOf(false) }
     val editedMessage = remember { mutableStateOf(message.message) }
 //    Log.d("MessageCard", "Message: $message")
-    Card( // Create a card for the message
-        modifier = Modifier // Set the modifier for the card
-            .clickable { onCardClicked() } //the card is clickable!
-            .padding(8.dp) // Add padding to the card
-            .fillMaxWidth() // Make the card fill the width of the screen
+    Card(
+        modifier = Modifier
+            .clickable { onCardClicked() }
+            .padding(8.dp)
+            .fillMaxWidth()
     ) {
-        Column( // Create a column for the message
-            modifier = Modifier // Set the modifier for the column
-                .padding(16.dp) // Add padding to the column
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
         ) {
-            Text(text = message.sender, fontWeight = FontWeight.Bold) // Show the sender of the message
-            Spacer(modifier = Modifier.height(4.dp)) // Add a spacer to add some space between the sender and the message
+            Text(text = message.sender, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
             if (isEditing.value) {
                 TextField(
                     value = editedMessage.value,
@@ -72,24 +79,24 @@ fun MessageCard(
                     Text(text = message.message)
                 }
             }
-            if (isEditing.value) { // add this line
-                Row { // add this line
-                    Button( // add this line
-                        onClick = { // add this line
-                            onEditClicked(message, editedMessage.value) // add this line
-                            isEditing.value = false // add this line
-                        } // add this line
-                    ) { // add this line
-                        Text("Save") // add this line
-                    } // add this line
-                    Button( // add this line
-                        onClick = { // add this line
-                            isEditing.value = false // add this line
-                        } // add this line
-                    ) { // add this line
-                        Text("Cancel") // add this line
-                    } // add this line
-                } // add this line
+            if (isEditing.value) {
+                Row {
+                    Button(
+                        onClick = {
+                            onEditClicked(message, editedMessage.value)
+                            isEditing.value = false
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                    Button(
+                        onClick = {
+                            isEditing.value = false
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp)) // Add a spacer to add some space between the message and the media controls
             Row { // Add this row
@@ -104,14 +111,19 @@ fun MessageCard(
                 }
             }
             MediaControls( // Show the media controls
-                onPlayPause = { // When the play/pause button is pressed
-                    if (mediaPlaybackManager.isPlaying()) {
-                        Log.d("MessageCard", "Pausing audio from file: ${message.audioFilePath.value}")
+                onPlayPause = {
+                    Log.d("MessageCard", "isPlaying: $isPlaying")
+                    if (isPlaying) {
                         mediaPlaybackManager.pause()
+                        mediaPlaybackManager.storePlaybackPosition()
                     } else {
-                        Log.d("MessageCard", "Resuming audio from file: ${message.audioFilePath.value}")
+                        if (mediaPlaybackManager.isPlaying()) {
+                            mediaPlaybackManager.pause()
+                            mediaPlaybackManager.resetPlaybackPosition()
+                        }
                         mediaPlaybackManager.playAudio(message.audioFilePath.value, context)
                     }
+                    isPlaying = !isPlaying
                 },
                 onSeekForward = { mediaPlaybackManager.seekForward() }, // Pass the seekForward callback
                 onSeekBackward = { mediaPlaybackManager.seekBackward() } // Pass the seekBackward callback

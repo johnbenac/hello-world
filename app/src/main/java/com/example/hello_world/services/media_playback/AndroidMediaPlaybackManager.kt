@@ -45,6 +45,7 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
                 Log.d("AndroidMediaPlaybackManager", "memory address: $this")
                 seekTo(playbackPosition) // Set the playback position
                 start()
+                Log.d("AndroidMediaPlaybackManager", "Resuming audio at position: $playbackPosition")
             }
         } else {
             mediaPlayer?.release()
@@ -54,8 +55,10 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
                 prepare()
                 start()
                 setOnCompletionListener {
-                    onFinish?.invoke()}
+                    onFinish?.invoke()
+                }
             }
+            currentFilePath = filePath // Update the currentFilePath here
         }
         mediaController?.hide()
         mediaController = MediaController(context)
@@ -101,4 +104,18 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
         })
         mediaController?.show()
     }
+
+
+    override fun storePlaybackPosition() {
+        mediaPlayer?.apply {
+            playbackPosition = currentPosition
+            Log.d("AndroidMediaPlaybackManager", "Storing playback position: $playbackPosition")
+        }
+    }
+
+    override fun resetPlaybackPosition() {
+        playbackPosition = 0
+        Log.d("AndroidMediaPlaybackManager", "Resetting playback position to: $playbackPosition")
+    }
 }
+

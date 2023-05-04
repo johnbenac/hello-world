@@ -10,4 +10,7 @@ interface MediaPlaybackManager {
     // Add other media control methods as needed
     fun seekForward()
     fun seekBackward()
+
+    fun storePlaybackPosition()
+    fun resetPlaybackPosition()
 }
