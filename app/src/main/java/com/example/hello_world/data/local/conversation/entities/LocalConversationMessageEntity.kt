@@ -1,9 +1,9 @@
-package com.example.hello_world.data.local.entities
+package com.example.hello_world.data.local.conversation.entities
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
-import com.example.hello_world.data.local.entities.LocalConversationEntity
+import com.example.hello_world.data.local.conversation.entities.LocalConversationEntity
 
 @Entity(
     tableName = "conversation_messages",

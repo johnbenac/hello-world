@@ -14,7 +14,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.hello_world.managers.ConversationManager
 import com.example.hello_world.managers.ConversationsManager
 import com.example.hello_world.OpenAiApiService
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.services.speech_to_text.VoiceTriggerDetector
 import com.example.hello_world.data.repository.IConversationRepository
@@ -30,7 +30,7 @@ import com.example.hello_world.withExponentialBackoff
 class SessionViewModel(
     var conversationId: UUID?,
     val context: Context,
-    val settingsViewModel: SettingsViewModel,
+    val configPacksViewModel: ConfigPacksViewModel,
     val openAiApiService: OpenAiApiService,
     val conversationRepository: IConversationRepository,
     var textToSpeechServiceState: MutableState<TextToSpeechService>?,
@@ -222,7 +222,7 @@ class SessionViewModel(
 class SessionViewModelFactory(
     private val conversationId: UUID?,
     private val context: Context,
-    private val settingsViewModel: SettingsViewModel,
+    private val configPacksViewModel: ConfigPacksViewModel,
     private val openAiApiService: OpenAiApiService,
     private val conversationRepository: IConversationRepository,
     private val textToSpeechServiceState: MutableState<TextToSpeechService>,
@@ -233,7 +233,7 @@ class SessionViewModelFactory(
             return SessionViewModel(
                 conversationId,
                 context,
-                settingsViewModel,
+                configPacksViewModel,
                 openAiApiService,
                 conversationRepository,
                 textToSpeechServiceState,

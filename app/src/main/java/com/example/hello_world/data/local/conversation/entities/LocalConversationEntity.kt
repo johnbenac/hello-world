@@ -1,4 +1,4 @@
-package com.example.hello_world.data.local.entities
+package com.example.hello_world.data.local.conversation.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

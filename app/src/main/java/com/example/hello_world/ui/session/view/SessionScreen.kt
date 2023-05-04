@@ -32,7 +32,7 @@ import com.example.hello_world.services.text_to_speech.AndroidTextToSpeechServic
 import com.example.hello_world.services.text_to_speech.ElevenLabsTextToSpeechService
 import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 
 
 @Composable
@@ -40,7 +40,7 @@ import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
 @OptIn(ExperimentalMaterialApi::class)
 fun SessionScreen(
     sessionViewModel: SessionViewModel,
-    settingsViewModel: SettingsViewModel,
+    configPacksViewModel: ConfigPacksViewModel,
     onSettingsClicked: () -> Unit,
     textToSpeechServiceState: MutableState<TextToSpeechService>,
     mediaPlaybackManager: MediaPlaybackManager,

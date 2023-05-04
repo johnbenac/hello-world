@@ -9,3 +9,4 @@ interface IConversationRepository {
     suspend fun deleteConversation(conversationId: UUID)
     suspend fun loadAllConversations(): List<Conversation>
 }
+

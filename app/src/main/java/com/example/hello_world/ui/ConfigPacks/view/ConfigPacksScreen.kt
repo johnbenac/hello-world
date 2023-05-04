@@ -20,24 +20,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 
 @Composable
-fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () -> Unit, navController: NavController) {
+fun ConfigPacksScreen(configPacksViewModel: ConfigPacksViewModel, onProfileApplied: () -> Unit, navController: NavController) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Current Settings", modifier = Modifier.padding(16.dp))
-        CurrentSettings(settingsViewModel.selectedConfigPack)
+        CurrentSettings(configPacksViewModel.selectedConfigPack)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Select a profile", modifier = Modifier.padding(16.dp))
+        Text("Select a ConfigPack", modifier = Modifier.padding(16.dp))
 
-        settingsViewModel.profiles.forEach { profile ->
+        configPacksViewModel.profiles.forEach { profile ->
             Card(
                 modifier = Modifier
                     .padding(8.dp)
                     .fillMaxWidth()
-                    .clickable { settingsViewModel.applyProfile(profile) }
+                    .clickable { configPacksViewModel.applyProfile(profile) }
                     .shadow(elevation = 4.dp) // Add shadow with the 4.dp elevation
             ) {
                 Row(
@@ -49,24 +49,24 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () ->
                 ) {
                     Text(text = profile.name)
                     Button(onClick = {
-                        Log.d("SettingsScreen", "Apply button clicked for profile: $profile")
-                        settingsViewModel.applyProfile(profile)
+                        Log.d("SettingsScreen", "Apply button clicked for ConfigPack: $profile")
+                        configPacksViewModel.applyProfile(profile)
                         onProfileApplied()
                     }) {
                         Text("Apply")
                     }
                     Button(
                         onClick = {
-                            Log.d("SettingsScreen", "Edit button clicked for profile: $profile")
+                            Log.d("SettingsScreen", "Edit button clicked for ConfigPack: $profile")
                             navController.navigate("edit-settings")
                         }
                     ) {
                         Text("Edit")
                     }
-                    if (profile !in settingsViewModel.defaultConfigPacks) {
+                    if (profile !in configPacksViewModel.defaultConfigPacks) {
                         Button(onClick = {
-                            Log.d("SettingsScreen", "Delete button clicked for profile: $profile")
-                            settingsViewModel.deleteProfile(profile)
+                            Log.d("SettingsScreen", "Delete button clicked for ConfigPack: $profile")
+                            configPacksViewModel.deleteProfile(profile)
                         }) {
                             Text("Delete")
                         }
@@ -79,7 +79,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel, onProfileApplied: () ->
 
 @Composable
 fun CurrentSettings(selectedConfigPack: ConfigPack?) {
-    selectedConfigPack?.let { profile ->
+    selectedConfigPack?.let { configpack ->
         Card(
             modifier = Modifier
                 .padding(8.dp)
@@ -90,12 +90,12 @@ fun CurrentSettings(selectedConfigPack: ConfigPack?) {
                 modifier = Modifier
                     .padding(16.dp)
             ) {
-                Text(text = "Model: ${profile.model}")
-                Text(text = "System Message: ${profile.systemMessage}")
-                Text(text = "Max Length: ${profile.maxLength}")
-                Text(text = "Temperature: ${profile.temperature}")
-                Text(text = "Frequency Penalty: ${profile.frequencyPenalty}")
-                Text(text = "Presence Penalty: ${profile.presencePenalty}")
+                Text(text = "Model: ${configpack.model}")
+                Text(text = "System Message: ${configpack.systemMessage}")
+                Text(text = "Max Length: ${configpack.maxLength}")
+                Text(text = "Temperature: ${configpack.temperature}")
+                Text(text = "Frequency Penalty: ${configpack.frequencyPenalty}")
+                Text(text = "Presence Penalty: ${configpack.presencePenalty}")
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.example.hello_world.models
+import java.util.UUID
 
 data class ConfigPack(
+    val id: UUID,
     val name: String,
     val systemMessage: String,
     val maxLength: Int,
@@ -11,6 +13,7 @@ data class ConfigPack(
 ) {
     companion object {
         val defaultConfigPack = ConfigPack(
+            id = UUID.randomUUID(),
             name = "Jake",
             systemMessage = "I am an AI assistant named Jake.",
             maxLength = 100,

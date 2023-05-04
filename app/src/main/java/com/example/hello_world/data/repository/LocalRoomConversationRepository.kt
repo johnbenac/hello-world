@@ -5,11 +5,13 @@ import com.example.hello_world.models.ConfigPack
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
-import com.example.hello_world.data.local.database.LocalConversationDatabase
-import com.example.hello_world.data.local.entities.LocalConversationEntity
-import com.example.hello_world.data.local.entities.LocalConversationMessageEntity
+import com.example.hello_world.data.local.conversation.database.LocalConversationDatabase
+import com.example.hello_world.data.local.conversation.entities.LocalConversationEntity
+import com.example.hello_world.data.local.conversation.entities.LocalConversationMessageEntity
 import com.example.hello_world.models.Conversation
+import com.squareup.moshi.FromJson
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.ToJson
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 
@@ -17,9 +19,14 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+
+
 class LocalRoomConversationRepository(context: Context) : IConversationRepository {
     private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
-    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi = Moshi.Builder()
+        .add(UUIDJsonAdapter())
+        .add(KotlinJsonAdapterFactory())
+        .build()
     override suspend fun saveConversation(conversation: Conversation) {
         Log.d("LocalRoomRepo", "Saving conversation with ID: ${conversation.id}")
         val configPackJson = moshi.adapter(ConfigPack::class.java).toJson(conversation.configPack)
@@ -106,5 +113,17 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
                 }
             }.filterNotNull()
         }
+    }
+}
+
+class UUIDJsonAdapter {
+    @ToJson
+    fun toJson(uuid: UUID): String {
+        return uuid.toString()
+    }
+
+    @FromJson
+    fun fromJson(uuidString: String): UUID {
+        return UUID.fromString(uuidString)
     }
 }

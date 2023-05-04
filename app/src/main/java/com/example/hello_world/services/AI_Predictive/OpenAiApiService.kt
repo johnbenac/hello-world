@@ -1,7 +1,7 @@
 package com.example.hello_world
 import com.example.hello_world.models.ConversationMessage
 import android.util.Log
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import java.util.Locale
 import okhttp3.Call
 import okhttp3.Callback
@@ -31,7 +31,7 @@ data class OpenAiApiRequest(
     val stream: Boolean
 )
 
-class OpenAiApiService(private val apiKey: String, private val settingsViewModel: SettingsViewModel, private val timeoutInSeconds: Long = 600) {
+class OpenAiApiService(private val apiKey: String, private val configPacksViewModel: ConfigPacksViewModel, private val timeoutInSeconds: Long = 600) {
     private val client = OkHttpClient.Builder()
         .readTimeout(timeoutInSeconds, TimeUnit.SECONDS)
         .writeTimeout(timeoutInSeconds, TimeUnit.SECONDS)
@@ -40,7 +40,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
 
     suspend fun sendMessage(conversationHistory: List<ConversationMessage>): String = suspendCancellableCoroutine { continuation ->
-        val currentProfile = settingsViewModel.selectedConfigPack
+        val currentProfile = configPacksViewModel.selectedConfigPack
         val systemMessage = currentProfile?.systemMessage ?: "you are an ai assistant named jake"
         val messages = mutableListOf(OpenAiMessage("system", systemMessage))
 
@@ -48,7 +48,7 @@ class OpenAiApiService(private val apiKey: String, private val settingsViewModel
             messages.add(OpenAiMessage(message.sender.toLowerCase(Locale.ROOT), message.message))
         }
 
-        val selectedProfile = settingsViewModel.selectedConfigPack
+        val selectedProfile = configPacksViewModel.selectedConfigPack
 
         val requestJson = moshi.adapter(OpenAiApiRequest::class.java).toJson(
             OpenAiApiRequest(

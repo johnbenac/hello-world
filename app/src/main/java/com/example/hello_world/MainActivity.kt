@@ -1,6 +1,6 @@
 package com.example.hello_world
 
-import EditSettingsScreen
+import ConfigPackScreen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,15 +15,14 @@ import androidx.activity.viewModels
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.hello_world.data.repository.LocalRoomConfigPackRepository
 import com.example.hello_world.data.repository.LocalRoomConversationRepository
 import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManager
 import com.example.hello_world.services.speech_to_text.VoiceTriggerDetector
@@ -32,7 +31,7 @@ import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
 import com.example.hello_world.ui.session.viewmodel.SessionViewModelFactory
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -44,9 +43,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var openAiApiService: OpenAiApiService
 
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
-    private val settingsViewModel = SettingsViewModel()
+
     private val mediaPlaybackManager = AndroidMediaPlaybackManager()
+    private lateinit var configPackRepository: LocalRoomConfigPackRepository
     private lateinit var conversationRepository: LocalRoomConversationRepository
+    private lateinit var configPacksViewModel: ConfigPacksViewModel
     private lateinit var textToSpeechServiceState: MutableState<TextToSpeechService>
     private lateinit var snackbarHostState: SnackbarHostState
 
@@ -54,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         SessionViewModelFactory(
             conversationId = null,
             context = this@MainActivity,
-            settingsViewModel = settingsViewModel,
+            configPacksViewModel = configPacksViewModel,
             openAiApiService = openAiApiService,
             conversationRepository = conversationRepository,
             textToSpeechServiceState = textToSpeechServiceState,
@@ -65,16 +66,17 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d("MainActivity", "log: MainActivity opened")
         super.onCreate(savedInstanceState)
         requestAudioPermission()
 
+        configPackRepository = LocalRoomConfigPackRepository(this)
         conversationRepository = LocalRoomConversationRepository(this)
+        configPacksViewModel = ConfigPacksViewModel(configPackRepository)
         textToSpeechServiceState = mutableStateOf(
             AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
         snackbarHostState = SnackbarHostState()
 
-        openAiApiService = OpenAiApiService("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", settingsViewModel)
+        openAiApiService = OpenAiApiService("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", configPacksViewModel)
 //        openAiApiService = OpenAiApiService("sk-SggwqYZZuvSwiFI5zkQmIRroRZ", settingsViewModel)
 
 
@@ -92,16 +94,16 @@ class MainActivity : AppCompatActivity() {
                     HomeScreen(onSessionsClicked = { navController.navigate("sessions") }, onConfigPacksClicked = { navController.navigate("configPacks") })
                 }
                 composable("settings") {
-                    SettingsScreen(settingsViewModel, { navController.popBackStack() }, navController)
+                    ConfigPacksScreen(configPacksViewModel, { navController.popBackStack() }, navController)
                 }
                 composable("edit-settings") {
-                    EditSettingsScreen(settingsViewModel, { navController.popBackStack() }, { navController.popBackStack() })
+                    ConfigPackScreen(configPacksViewModel, { navController.popBackStack() }, { navController.popBackStack() })
                 }
                 composable("session/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")?.let { UUID.fromString(it) }
                     SessionScreen(
                         sessionViewModel,
-                        settingsViewModel,
+                        configPacksViewModel,
                         { navController.navigate("settings") },
                         textToSpeechServiceState,
                         mediaPlaybackManager,

@@ -7,21 +7,21 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.hello_world.ui.settings.viewmodel.SettingsViewModel
+import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import androidx.compose.material.RadioButton
 
 import androidx.compose.material.Slider
 
 @Composable
-fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
-    val editedProfile = settingsViewModel.editedConfigPack.value // Access the value property here
+fun ConfigPackScreen(configPacksViewModel: ConfigPacksViewModel, onSettingsSaved: () -> Unit, onCancel: () -> Unit) {
+    val editedProfile = configPacksViewModel.editedConfigPack.value // Access the value property here
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Edit Settings", modifier = Modifier.padding(16.dp))
 
         OutlinedTextField(
             value = editedProfile.name, // Access the name property from the value
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileName(newValue) }, // Use newValue instead of it
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileName(newValue) }, // Use newValue instead of it
             label = { Text("Profile Name") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -30,7 +30,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
 
         OutlinedTextField(
             value = editedProfile.systemMessage.takeIf { it.isNotEmpty() } ?: "I am an AI assistant.",
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileSystemMessage(newValue) },
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileSystemMessage(newValue) },
             label = { Text("System Message") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -39,7 +39,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
         Text("Max Length (20 to 2000)", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.maxLength.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileMaxLength(newValue.toInt()) },
             valueRange = 20f..2000f,
             steps = 5,
             modifier = Modifier
@@ -49,7 +49,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
         Text("Temperature", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.temperature.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileTemperature(newValue.toDouble()) },
             valueRange = 0f..1f,
             steps = 10,
             modifier = Modifier
@@ -59,7 +59,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
         Text("Frequency Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.frequencyPenalty.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfileFrequencyPenalty(newValue.toDouble()) },
             valueRange = 0f..1f,
             steps = 10,
             modifier = Modifier
@@ -69,7 +69,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
         Text("Presence Penalty", modifier = Modifier.padding(start = 16.dp, top = 8.dp))
         Slider(
             value = editedProfile.presencePenalty.toFloat(),
-            onValueChange = { newValue -> settingsViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
+            onValueChange = { newValue -> configPacksViewModel.updateEditedProfilePresencePenalty(newValue.toDouble()) },
             valueRange = 0f..1f,
             steps = 10,
             modifier = Modifier
@@ -85,12 +85,12 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
                         .padding(end = 16.dp)
                         .selectable(
                             selected = (model == editedProfile.model),
-                            onClick = { settingsViewModel.updateEditedProfileModel(model) }
+                            onClick = { configPacksViewModel.updateEditedProfileModel(model) }
                         )
                 ) {
                     RadioButton(
                         selected = (model == editedProfile.model),
-                        onClick = { settingsViewModel.updateEditedProfileModel(model) }
+                        onClick = { configPacksViewModel.updateEditedProfileModel(model) }
                     )
                     Text(
                         text = model,
@@ -108,7 +108,7 @@ fun EditSettingsScreen(settingsViewModel: SettingsViewModel, onSettingsSaved: ()
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Button(onClick = {
-                settingsViewModel.saveEditedProfile()
+                configPacksViewModel.saveEditedProfile()
                 onSettingsSaved()
                 Log.d("EditSettingsScreen", "Save button clicked")
             }) {
