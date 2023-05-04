@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
                         configPacksViewModel,
                         { navController.navigate("settings") },
                         textToSpeechServiceState,
-                        mediaPlaybackManager,
+                        mediaPlaybackManager = mediaPlaybackManager,
                         navController,
                         snackbarHostState
                     )
