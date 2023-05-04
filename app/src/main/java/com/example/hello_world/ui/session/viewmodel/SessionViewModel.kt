@@ -120,6 +120,7 @@ class SessionViewModel(
         val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
         conversationManager.addMessage(assistantMessageObj)
         conversationMessages.add(assistantMessageObj)
+        autosaveConversation()
 
         textToSpeechServiceState?.value?.renderSpeech(responseText.replace("\n", " "), onFinish = {
             if (conversationManager.conversation.messages.isNotEmpty()) {
@@ -140,14 +141,23 @@ class SessionViewModel(
     fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
         conversationManager.updateMessage(index, updatedMessage)
         conversationMessages[index] = updatedMessage
+        autosaveConversation()
     }
 
     fun deleteMessage(index: Int) {
         viewModelScope.launch {
             conversationManager.deleteMessage(index)
             conversationMessages.removeAt(index)
+            autosaveConversation()
         }
     }
+
+    private fun autosaveConversation() {
+        viewModelScope.launch {
+            conversationsManager.saveConversation(conversationManager.conversation)
+        }
+    }
+
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
             if (_isListening.value && _isAppSpeaking.value) {
@@ -176,6 +186,7 @@ class SessionViewModel(
         viewModelScope.launch {
             sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
         }
+        autosaveConversation()
     }
 
     fun loadConversation(conversationId: UUID) {
