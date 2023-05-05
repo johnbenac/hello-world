@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -30,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.hello_world.services.media_playback.MediaPlaybackManager
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -51,8 +53,13 @@ fun MessageCard(
     val isPlayingState = remember { mutableStateOf(false) }
     var isPlaying: Boolean by object : ReadWriteProperty<Any?, Boolean> {
         override fun getValue(thisRef: Any?, property: KProperty<*>) = isPlayingState.value
-        override fun setValue(thisRef: Any?, property: KProperty<*>, value: Boolean) { isPlayingState.value = value }
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: Boolean) {
+            isPlayingState.value = value
+        }
     }
+
+    val showDialog = rememberSaveable { mutableStateOf(false) }
+
     val isEditing = remember { mutableStateOf(false) }
     val editedMessage = remember { mutableStateOf(message.message) }
 //    Log.d("MessageCard", "Message: $message")
@@ -98,19 +105,26 @@ fun MessageCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp)) // Add a spacer to add some space between the message and the media controls
+            Spacer(modifier = Modifier.height(8.dp))
             Row { // Add this row
                 IconButton(onClick = { isEditing.value = !isEditing.value }) {
                     Icon(Icons.Filled.Create, contentDescription = "Edit message")
                 }
-                IconButton(onClick = onDeleteClicked) {
+                IconButton(onClick = {
+                    showDialog.value = true
+                }) { // Set showDialog to true when the delete button is clicked
                     Icon(Icons.Filled.Close, contentDescription = "Delete message")
                 }
-                IconButton(onClick = { onShareClicked(message.message, message.audioFilePath.value.toUriOrNull()) }) {
+                IconButton(onClick = {
+                    onShareClicked(
+                        message.message,
+                        message.audioFilePath.value.toUriOrNull()
+                    )
+                }) {
                     Icon(Icons.Filled.Share, contentDescription = "Share message")
                 }
             }
-            MediaControls( // Show the media controls
+            MediaControls(
                 onPlayPause = {
                     Log.d("MessageCard", "isPlaying: $isPlaying")
                     if (isPlaying) {
@@ -125,9 +139,33 @@ fun MessageCard(
                     }
                     isPlaying = !isPlaying
                 },
-                onSeekForward = { mediaPlaybackManager.seekForward() }, // Pass the seekForward callback
-                onSeekBackward = { mediaPlaybackManager.seekBackward() } // Pass the seekBackward callback
+                onSeekForward = { mediaPlaybackManager.seekForward() },
+                onSeekBackward = { mediaPlaybackManager.seekBackward() }
             )
+            if (showDialog.value) {
+                AlertDialog(
+                    onDismissRequest = { showDialog.value = false },
+                    title = { Text("Confirm Delete") },
+                    text = { Text("Are you sure you want to delete this message?") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                onDeleteClicked()
+                                showDialog.value = false
+                            }
+                        ) {
+                            Text("Yes")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showDialog.value = false }
+                        ) {
+                            Text("No")
+                        }
+                    }
+                )
+            }
         }
     }
 }
