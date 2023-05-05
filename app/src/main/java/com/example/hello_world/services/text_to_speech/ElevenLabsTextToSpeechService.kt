@@ -112,7 +112,7 @@ class ElevenLabsTextToSpeechService(
                     inputStream.copyTo(outputStream)
                 }
                 Log.d("ElevenLabsTextToSpeechService", "Audio file saved: $filePath")
-                audioFilePathState.value = filePath
+                updateAudioFilePathState(filePath, audioFilePathState)
                 mediaPlaybackManager.playAudio(filePath, context, onFinish = {
                     onFinish?.invoke()
                     onPlaybackFinished()
@@ -142,5 +142,10 @@ class ElevenLabsTextToSpeechService(
     }
     override fun shutdown() {
         // Implement shutdown functionality if needed
+    }
+    private fun updateAudioFilePathState(audioFilePath: String, audioFilePathState: MutableState<String>) {
+        if (audioFilePathState.value.isEmpty()) {
+            audioFilePathState.value = audioFilePath
+        }
     }
 }

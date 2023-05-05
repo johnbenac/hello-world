@@ -45,7 +45,7 @@ class AndroidTextToSpeechService(
             override fun onDone(utteranceId: String) {
 //                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId")
                 Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath")
-                audioFilePathState.value = filePath
+                updateAudioFilePathState(filePath, audioFilePathState)
                 lastGeneratedAudioFilePath = filePath
 //                Log.d("AndroidTextToSpeechService","about to attempt to play audio file")
 //                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath
@@ -68,5 +68,10 @@ class AndroidTextToSpeechService(
     }
     override fun shutdown() {
         textToSpeech.shutdown()
+    }
+    private fun updateAudioFilePathState(audioFilePath: String, audioFilePathState: MutableState<String>) {
+        if (audioFilePathState.value.isEmpty()) {
+            audioFilePathState.value = audioFilePath
+        }
     }
 }

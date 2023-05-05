@@ -102,7 +102,8 @@ class SessionViewModel(
         // Add user message to the conversation state
 
 
-        val userMessageObj = ConversationMessage("User", userMessage, audioFilePathState)
+        val userAudioFilePathState = mutableStateOf("")
+        val userMessageObj = ConversationMessage("User", userMessage, userAudioFilePathState)
         conversationManager.addMessage(userMessageObj)
         conversationMessages.add(userMessageObj)
 
@@ -116,8 +117,8 @@ class SessionViewModel(
         }) ?: return
         Log.d("SessionViewModel", "Received response from OpenAI API: $responseText")
 
-
-        val assistantMessageObj = ConversationMessage("Assistant", responseText, audioFilePathState)
+        val assistantAudioFilePathState = mutableStateOf("")
+        val assistantMessageObj = ConversationMessage("Assistant", responseText.replace("\n", " "), assistantAudioFilePathState)
         conversationManager.addMessage(assistantMessageObj)
         conversationMessages.add(assistantMessageObj)
         autosaveConversation()
@@ -134,7 +135,7 @@ class SessionViewModel(
                 stopListening()
                 Log.d("SessionViewModel", "log: stopListening called associated with onStart")
             }
-        }, audioFilePathState = conversationManager.conversation.messages.last().audioFilePath)
+        }, audioFilePathState = assistantMessageObj.audioFilePath)
         _isAppSpeaking.value = true
     }
 
