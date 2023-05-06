@@ -37,6 +37,7 @@ class AndroidTextToSpeechService(
         val filePath = File(context.getExternalFilesDir(null), uniqueFileName).absolutePath
 
         textToSpeech.synthesizeToFile(text, null, File(filePath), UUID.randomUUID().toString())
+        Log.d("AndroidTextToSpeechService", "synthesizeToFile started for filePath: $filePath")
         textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String) {
                 onStart?.invoke()
@@ -46,6 +47,7 @@ class AndroidTextToSpeechService(
 //                Log.d("AndroidTextToSpeechService", "onDone called with utteranceId: $utteranceId")
                 Log.d("AndroidTextToSpeechService", "Audio file generated: $filePath")
                 updateAudioFilePathState(filePath, audioFilePathState)
+                Log.d("AndroidTextToSpeechService", "audioFilePathState updated: $filePath")
                 lastGeneratedAudioFilePath = filePath
 //                Log.d("AndroidTextToSpeechService","about to attempt to play audio file")
 //                playSavedAudioFile(filePath, onStart, onFinish) // Use filePath instead of File(context.cacheDir, "google_tts.mp3").absolutePath

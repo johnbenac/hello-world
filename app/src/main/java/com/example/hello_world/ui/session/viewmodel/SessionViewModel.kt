@@ -92,7 +92,7 @@ class SessionViewModel(
     fun startListening() {
         voiceTriggerDetector.startListening()
         _isListening.value = true
-        Log.d("SessionViewModel", "fun startListening startListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+//        Log.d("SessionViewModel", "fun startListening startListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
 
@@ -137,6 +137,7 @@ class SessionViewModel(
             }
         }, audioFilePathState = assistantMessageObj.audioFilePath)
         _isAppSpeaking.value = true
+        autosaveConversation()
     }
 
     fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
@@ -153,16 +154,17 @@ class SessionViewModel(
         }
     }
 
-    private fun autosaveConversation() {
+    fun autosaveConversation() {
         viewModelScope.launch {
             conversationsManager.saveConversation(conversationManager.conversation)
+            Log.d("SessionViewModel", "log: Autosaved conversation, instance: $this, memory location: ${System.identityHashCode(this)}")
         }
     }
 
     private fun startPeriodicListeningCheck() {
         mainHandler.postDelayed({
             if (_isListening.value && _isAppSpeaking.value) {
-                Log.d("SessionViewModel", "log: Periodic check - Restarting listening, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+//                Log.d("SessionViewModel", "log: Periodic check - Restarting listening, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
                 startListening()
             }
             startPeriodicListeningCheck()

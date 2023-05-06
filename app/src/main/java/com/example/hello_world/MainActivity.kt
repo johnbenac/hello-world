@@ -127,6 +127,7 @@ class MainActivity : AppCompatActivity() {
                             savedConversationsViewModel.viewModelScope.launch {
                                 val newConversationId = savedConversationsViewModel.createNewConversation()
                                 navController.navigate("session/${newConversationId.toString()}")
+                                sessionViewModel.loadConversationWithId(newConversationId)
                             }
                         }
                     )
