@@ -8,12 +8,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -38,6 +42,8 @@ import java.util.Locale
 import java.util.UUID
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.graphicsLayer
 import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
 
@@ -60,36 +66,39 @@ fun SavedConversationsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(onClick = onNewConversationClicked) {
+                        Icon(Icons.Default.Add, contentDescription = "New Conversation")
+                    }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNewConversationClicked) {
-                Icon(Icons.Default.Add, contentDescription = "New Conversation")
-            }
         }
     ) {
-        if (savedConversations.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No saved conversations")
-            }
-        } else {
-            LazyColumn(modifier = Modifier.padding(8.dp)) {
-                items(savedConversations.size) { index ->
-                    val conversation = savedConversations[index]
-                    ConversationCard(
-                        conversation = conversation,
-                        onClick = {
-                            Log.d("SavedConversationsScreen", "Selected conversation ID: ${conversation.id}")
-                            onConversationSelected(conversation.id)
-                        },
-                        onDeleteClicked = { viewModel.deleteConversation(conversation.id) }
-                    )
+        Column {
+            Spacer(modifier = Modifier.height(56.dp)) // Add Spacer with the same height as the TopAppBar
+
+            if (savedConversations.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No saved conversations")
+                }
+            } else {
+                LazyColumn(modifier = Modifier.padding(8.dp)) {
+                    items(savedConversations.size) { index ->
+                        val conversation = savedConversations[index]
+                        ConversationCard(
+                            conversation = conversation,
+                            onClick = {
+                                Log.d("SavedConversationsScreen", "Selected conversation ID: ${conversation.id}")
+                                onConversationSelected(conversation.id)
+                            },
+                            onDeleteClicked = { viewModel.deleteConversation(conversation.id) }
+                        )
+                    }
                 }
             }
         }
-    }
-}
+    }}
 
 @Composable
 fun CardElevation(
@@ -113,6 +122,33 @@ fun ConversationCard(
     onClick: () -> Unit,
     onDeleteClicked: () -> Unit
 ) {
+    val showDeleteDialog = remember { mutableStateOf(false) }
+
+    if (showDeleteDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog.value = false },
+            title = { Text("Delete Conversation") },
+            text = { Text("Are you sure you want to delete this conversation? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteClicked()
+                        showDeleteDialog.value = false
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog.value = false }
+                ) {
+                    Text("No")
+                }
+            }
+        )
+    }
+
     CardElevation(
         modifier = Modifier
             .fillMaxWidth()
@@ -129,7 +165,7 @@ fun ConversationCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                IconButton(onClick = onDeleteClicked) {
+                IconButton(onClick = { showDeleteDialog.value = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete")
                 }
             }

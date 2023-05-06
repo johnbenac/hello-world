@@ -61,6 +61,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.launch
 
 
@@ -125,7 +127,7 @@ fun SessionScreen(
         val maxHeight = constraints.maxHeight
         Column(modifier = Modifier.fillMaxSize()) {
             val isTitleEditing = remember { mutableStateOf(false) }
-            val editedTitle = remember { mutableStateOf(sessionViewModel.conversationManager.conversation.title) }
+            val editedTitle = remember { mutableStateOf(TextFieldValue(sessionViewModel.conversationManager.conversation.title)) }
 
             fun onTitleEditClicked(newTitle: String) {
                 sessionViewModel.viewModelScope.launch {
@@ -133,12 +135,17 @@ fun SessionScreen(
                     sessionViewModel.conversationManager.conversation = updatedConversation
                     sessionViewModel.conversationRepository.saveConversation(updatedConversation)
                 }
+                editedTitle.value = TextFieldValue(newTitle, TextRange(newTitle.length))
             }
-
+            LaunchedEffect(isTitleEditing.value) {
+                if (isTitleEditing.value) {
+                    focusRequester.requestFocus()
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colors.primary)
+                    .background(MaterialTheme.colors.secondaryVariant)
                     .padding(8.dp)
             ) {
                 if (isTitleEditing.value) {
@@ -148,10 +155,10 @@ fun SessionScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focusRequester),
-                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MaterialTheme.colors.primary),
+                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MaterialTheme.colors.secondary),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
-                            onTitleEditClicked(editedTitle.value)
+                            onTitleEditClicked(editedTitle.value.text)
                             isTitleEditing.value = false
                             coroutineScope.launch {
                                 focusRequester.freeFocus()
@@ -171,7 +178,7 @@ fun SessionScreen(
                 IconButton(
                     onClick = {
                         if (isTitleEditing.value) {
-                            onTitleEditClicked(editedTitle.value)
+                            onTitleEditClicked(editedTitle.value.text)
                             isTitleEditing.value = false
                         } else {
                             isTitleEditing.value = true
