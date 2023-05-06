@@ -118,7 +118,7 @@ class SessionViewModel(
         Log.d("SessionViewModel", "Received response from OpenAI API: $responseText")
 
         val assistantAudioFilePathState = mutableStateOf("")
-        val assistantMessageObj = ConversationMessage("Assistant", responseText.replace("\n", " "), assistantAudioFilePathState)
+        val assistantMessageObj = ConversationMessage("Assistant", responseText, assistantAudioFilePathState)
         conversationManager.addMessage(assistantMessageObj)
         conversationMessages.add(assistantMessageObj)
         autosaveConversation()
