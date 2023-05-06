@@ -1,9 +1,14 @@
 package com.example.hello_world
 
+import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -20,16 +25,29 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.TextField
+import androidx.compose.material.TextFieldDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.core.content.FileProvider
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.example.hello_world.services.media_playback.MediaPlaybackManager
 import com.example.hello_world.services.text_to_speech.AndroidTextToSpeechService
@@ -37,7 +55,13 @@ import com.example.hello_world.services.text_to_speech.ElevenLabsTextToSpeechSer
 import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
 import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
+import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.foundation.focusable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -52,6 +76,8 @@ fun SessionScreen(
     navController: NavController,
     snackbarHostState: SnackbarHostState
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
     DisposableEffect(Unit) {
 
         Log.d("SessionScreen", "sessionViewModel.conversationId: ${sessionViewModel.conversationId}")
@@ -98,6 +124,68 @@ fun SessionScreen(
         }
         val maxHeight = constraints.maxHeight
         Column(modifier = Modifier.fillMaxSize()) {
+            val isTitleEditing = remember { mutableStateOf(false) }
+            val editedTitle = remember { mutableStateOf(sessionViewModel.conversationManager.conversation.title) }
+
+            fun onTitleEditClicked(newTitle: String) {
+                sessionViewModel.viewModelScope.launch {
+                    val updatedConversation = sessionViewModel.conversationManager.conversation.copy(title = newTitle)
+                    sessionViewModel.conversationManager.conversation = updatedConversation
+                    sessionViewModel.conversationRepository.saveConversation(updatedConversation)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colors.primary)
+                    .padding(8.dp)
+            ) {
+                if (isTitleEditing.value) {
+                    TextField(
+                        value = editedTitle.value,
+                        onValueChange = { editedTitle.value = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MaterialTheme.colors.primary),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            onTitleEditClicked(editedTitle.value)
+                            isTitleEditing.value = false
+                            coroutineScope.launch {
+                                focusRequester.freeFocus()
+                            }
+                        })
+                    )
+                } else {
+                    Text(
+                        text = sessionViewModel.conversationManager.conversation.title,
+                        color = MaterialTheme.colors.onPrimary,
+                        modifier = Modifier
+                            .clickable { isTitleEditing.value = true }
+                            .focusable(false)
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        if (isTitleEditing.value) {
+                            onTitleEditClicked(editedTitle.value)
+                            isTitleEditing.value = false
+                        } else {
+                            isTitleEditing.value = true
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        Icons.Filled.Create,
+                        contentDescription = "Edit title",
+                        tint = MaterialTheme.colors.onPrimary
+                    )
+                }
+            }
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)

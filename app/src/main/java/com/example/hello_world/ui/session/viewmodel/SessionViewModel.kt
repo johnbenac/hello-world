@@ -42,7 +42,7 @@ class SessionViewModel(
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     private val conversationsManager = ConversationsManager(conversationRepository)
-    private val conversationManager = ConversationManager(Conversation(configPack = ConfigPack.defaultConfigPack))
+    val conversationManager = ConversationManager(Conversation(configPack = ConfigPack.defaultConfigPack))
     val isAppSpeaking: Boolean get() = _isAppSpeaking.value
     val showSaveDialog = mutableStateOf(false)
     val saveDialogTitle = mutableStateOf("")
