@@ -52,11 +52,14 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
             mediaPlayer = MediaPlayer().apply {
                 Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath")
                 setDataSource(filePath)
+                setOnCompletionListener {
+                    resetPlaybackPosition()
+                    onFinish?.invoke()
+                    seekTo(0)
+                }
                 prepare()
                 start()
-                setOnCompletionListener {
-                    onFinish?.invoke()
-                }
+
             }
             currentFilePath = filePath // Update the currentFilePath here
         }
