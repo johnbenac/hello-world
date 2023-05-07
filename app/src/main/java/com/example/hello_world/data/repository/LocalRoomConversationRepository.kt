@@ -1,9 +1,16 @@
 package com.example.hello_world.data.repository
 
+import android.content.ContentValues
 import com.example.hello_world.models.ConversationMessage
 import com.example.hello_world.models.ConfigPack
 import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import com.example.hello_world.data.local.conversation.database.LocalConversationDatabase
 import com.example.hello_world.data.local.conversation.entities.LocalConversationEntity
@@ -18,13 +25,15 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 
-
-class LocalRoomConversationRepository(context: Context) : IConversationRepository {
+class LocalRoomConversationRepository(private val context: Context) : IConversationRepository {
     private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
+
     private val moshi = Moshi.Builder()
         .add(UUIDJsonAdapter())
+        .add(MutableStateStringJsonAdapter()) // Add this line
         .add(KotlinJsonAdapterFactory())
         .build()
     override suspend fun saveConversation(conversation: Conversation) {
@@ -114,7 +123,165 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
             }.filterNotNull()
         }
     }
+    suspend fun saveExportedFile(context: Context, fileName: String, jsonString: String): Uri? {
+        val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath
+        val file = File(path, fileName)
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DATA, file.absolutePath)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+
+        val contentResolver = context.contentResolver
+        val uri = contentResolver.insert(MediaStore.Files.getContentUri("external"), contentValues)
+
+        if (uri != null) {
+            withContext(Dispatchers.IO) {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(jsonString.toByteArray())
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                contentResolver.update(uri, contentValues, null, null)
+            }
+        }
+
+        return uri
+    }
+    override suspend fun exportConversations(): String {
+        // Load all conversations with messages
+        val conversations = withContext(Dispatchers.IO) {
+            val conversationEntities = conversationDao.getAllConversations()
+            conversationEntities.mapNotNull { entity ->
+                val configPack = moshi.adapter(ConfigPack::class.java).fromJson(entity.profileJson)
+                val messages = conversationDao.getMessages(entity.id).map { messageEntity ->
+                    ConversationMessage(
+                        sender = messageEntity.sender,
+                        message = messageEntity.message,
+                        audioFilePath = mutableStateOf(messageEntity.audioFilePath)
+                    )
+                }
+                configPack?.let {
+                    Conversation(
+                        id = UUID.fromString(entity.id),
+                        messages = messages.toMutableList(),
+                        configPack = it,
+                        createdAt = entity.createdAt,
+                        title = entity.title.orEmpty(),
+                        dateStarted = entity.dateStarted,
+                        dateLastSaved = entity.dateLastSaved,
+                        messageCount = entity.messageCount
+                    )
+                }
+            }
+        }
+
+        // Copy audio files to external storage
+        val audioFolderPath = copyAudioFilesToExternal(conversations, context)
+
+        // Update audio file paths to external storage paths
+        val updatedConversations = conversations.map { conversation ->
+            conversation.copy(
+                messages = conversation.messages.map { message ->
+                    val externalAudioFile = File(audioFolderPath, File(message.audioFilePath.value).name)
+                    val newAudioFilePath = externalAudioFile.absolutePath
+                    message.copy(audioFilePath = mutableStateOf(newAudioFilePath))
+                }.toMutableList()
+            )
+        }
+
+        // Create ExportData object with updated conversations
+        val exportData = ExportData(conversations = updatedConversations)
+
+        // Serialize ExportData object to JSON
+        val jsonString = moshi.adapter(ExportData::class.java).toJson(exportData)
+
+        // Save the jsonString to a file
+        val exportFileName = "exported_conversations.json"
+        val exportFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), exportFileName)
+        withContext(Dispatchers.IO) {
+            exportFile.writeText(jsonString)
+        }
+
+        val uri = saveExportedFile(context, "exported_conversations.json", jsonString)
+
+        if (uri != null) {
+            // Show a Toast message for a successful export
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Export successful. File saved to ${uri.path}", Toast.LENGTH_LONG).show()
+            }
+            Log.d("SavedConversationsViewModel", "Export successful. File saved to ${uri.path}")
+        } else {
+            // Show a Toast message for a failed export
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
+            }
+            Log.d("SavedConversationsViewModel", "Export failed")
+        }
+
+        return jsonString
+    }
+
+    // Implement the importConversations method
+    override suspend fun importConversations(json: String) {
+        val exportData = moshi.adapter(ExportData::class.java).fromJson(json) ?: return
+        exportData.conversations.forEach { importedConversation ->
+            // Copy audio files back to the app's data folder
+            val updatedMessages = importedConversation.messages.map { message ->
+                val externalAudioFile = File(message.audioFilePath.value)
+                if (externalAudioFile.exists()) {
+                    val internalAudioFile = File(context.filesDir, "ConversationAudio/${externalAudioFile.name}")
+                    withContext(Dispatchers.IO) {
+                        externalAudioFile.copyTo(internalAudioFile, overwrite = true)
+                    }
+                    message.copy(audioFilePath = mutableStateOf(internalAudioFile.absolutePath))
+                } else {
+                    message
+                }
+            }
+            saveConversation(importedConversation.copy(messages = updatedMessages.toMutableList()))
+        }
+    }
+
+    suspend fun copyAudioFilesToExternal(conversations: List<Conversation>, context: Context): String {
+        val externalFolderPath = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)?.absolutePath
+        val audioFolder = File(externalFolderPath, "ConversationAudio")
+        if (!audioFolder.exists()) {
+            audioFolder.mkdirs()
+        }
+
+        conversations.forEach { conversation ->
+            conversation.messages.forEach { message ->
+                val audioFilePath = message.audioFilePath.value
+                if (audioFilePath.isNotEmpty()) {
+                    val sourceFile = File(audioFilePath)
+                    val destinationFile = File(audioFolder, sourceFile.name)
+                    withContext(Dispatchers.IO) {
+                        sourceFile.copyTo(destinationFile, overwrite = true)
+                    }
+                }
+            }
+        }
+
+        return audioFolder.absolutePath
+    }
+
+
+
 }
+
+
+data class ExportData(
+    val conversations: List<Conversation>
+)
 
 class UUIDJsonAdapter {
     @ToJson
@@ -125,5 +292,17 @@ class UUIDJsonAdapter {
     @FromJson
     fun fromJson(uuidString: String): UUID {
         return UUID.fromString(uuidString)
+    }
+}
+
+class MutableStateStringJsonAdapter {
+    @ToJson
+    fun toJson(state: MutableState<String>): String {
+        return state.value
+    }
+
+    @FromJson
+    fun fromJson(string: String): MutableState<String> {
+        return mutableStateOf(string)
     }
 }

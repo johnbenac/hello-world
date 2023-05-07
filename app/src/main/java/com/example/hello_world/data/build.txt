@@ -1,8 +1,48 @@
 this is the codebase: 
  
+```LocalConfigPackDao.kt    
+ 
+package com.example.hello_world.data.local.configpack.dao
+
+
+@Dao
+interface LocalConfigPackDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConfigPack(configPack: LocalConfigPackEntity)
+
+    @Query("SELECT * FROM config_packs")
+    suspend fun getAllConfigPacks(): List<LocalConfigPackEntity>
+
+    @Query("DELETE FROM config_packs WHERE id = :configPackId")
+    suspend fun deleteConfigPack(configPackId: String)
+ 
+``` 
+ 
+ 
+```LocalConfigPackEntity.kt    
+ 
+package com.example.hello_world.data.local.configpack.entities
+
+
+
+@Entity(tableName = "config_packs")
+data class LocalConfigPackEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val systemMessage: String,
+    val maxLength: Int,
+    val temperature: Double,
+    val frequencyPenalty: Double,
+    val presencePenalty: Double,
+    val model: String
+ 
+``` 
+ 
+ 
 ```LocalConversationDao.kt    
  
-package com.example.hello_world.data.local.dao
+package com.example.hello_world.data.local.conversation.dao
 
 
 @Dao
@@ -39,16 +79,18 @@ interface LocalConversationDao {
  
 ```LocalConversationDatabase.kt    
  
-package com.example.hello_world.data.local.database
+package com.example.hello_world.data.local.conversation.database
+
 
 
 @Database(
-    entities = [LocalConversationEntity::class, LocalConversationMessageEntity::class],
-    version = 2,
+    entities = [LocalConversationEntity::class, LocalConversationMessageEntity::class, LocalConfigPackEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class LocalConversationDatabase : RoomDatabase() {
     abstract fun conversationDao(): LocalConversationDao
+    abstract fun configPackDao(): LocalConfigPackDao
 
     companion object {
         @Volatile
@@ -72,7 +114,7 @@ abstract class LocalConversationDatabase : RoomDatabase() {
  
 ```LocalConversationEntity.kt    
  
-package com.example.hello_world.data.local.entities
+package com.example.hello_world.data.local.conversation.entities
 
 
 @Entity(tableName = "conversations")
@@ -91,7 +133,7 @@ data class LocalConversationEntity(
  
 ```LocalConversationMessageEntity.kt    
  
-package com.example.hello_world.data.local.entities
+package com.example.hello_world.data.local.conversation.entities
 
 
 @Entity(
@@ -116,6 +158,60 @@ data class LocalConversationMessageEntity(
 ``` 
  
  
+```ConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface ConfigPackRepository {
+    fun addConfigPack(configPack: ConfigPack)
+    fun removeConfigPack(configPack: ConfigPack)
+    fun getAllConfigPacks(): List<ConfigPack>
+    fun findConfigPackByName(name: String): ConfigPack?
+}
+
+
+class DefaultConfigPackRepository : ConfigPackRepository {
+    private val configPacks = mutableListOf<ConfigPack>()
+
+    init {
+        // Add default ConfigPacks here
+        configPacks.add(ConfigPack(UUID.randomUUID(),"GPT3.5", "I am an AI assistant named Jake.", 1000, 0.9, 0.0, 0.1, "gpt-3.5-turbo"))
+        configPacks.add(ConfigPack(UUID.randomUUID(),"GPT4", "I am here to help you today. What do you need?", 1500, 0.8, 0.1, 0.2, "gpt-4"))
+    }
+
+    override fun addConfigPack(configPack: ConfigPack) {
+        configPacks.add(configPack)
+    }
+
+    override fun removeConfigPack(configPack: ConfigPack) {
+        configPacks.remove(configPack)
+    }
+
+    override fun getAllConfigPacks(): List<ConfigPack> {
+        return configPacks.toList()
+    }
+
+    override fun findConfigPackByName(name: String): ConfigPack? {
+        return configPacks.firstOrNull { it.name == name }
+    }
+ 
+``` 
+ 
+ 
+```IConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+interface IConfigPackRepository {
+    suspend fun addConfigPack(configPack: ConfigPack)
+    suspend fun removeConfigPack(configPack: ConfigPack)
+    suspend fun getAllConfigPacks(): List<ConfigPack>
+ 
+``` 
+ 
+ 
 ```IConversationRepository.kt    
  
 package com.example.hello_world.data.repository
@@ -126,6 +222,59 @@ interface IConversationRepository {
     suspend fun loadConversation(conversationId: UUID): Conversation?
     suspend fun deleteConversation(conversationId: UUID)
     suspend fun loadAllConversations(): List<Conversation>
+}
+
+ 
+``` 
+ 
+ 
+```LocalRoomConfigPackRepository.kt    
+ 
+package com.example.hello_world.data.repository
+
+
+
+class LocalRoomConfigPackRepository(context: Context) : IConfigPackRepository {
+    private val configPackDao = LocalConversationDatabase.getInstance(context).configPackDao()
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+
+    override suspend fun addConfigPack(configPack: ConfigPack) {
+        val localConfigPack = LocalConfigPackEntity(
+            id = configPack.id.toString(),
+            name = configPack.name,
+            systemMessage = configPack.systemMessage,
+            maxLength = configPack.maxLength,
+            temperature = configPack.temperature,
+            frequencyPenalty = configPack.frequencyPenalty,
+            presencePenalty = configPack.presencePenalty,
+            model = configPack.model
+        )
+        configPackDao.insertConfigPack(localConfigPack)
+    }
+
+    override suspend fun removeConfigPack(configPack: ConfigPack) {
+        configPackDao.deleteConfigPack(configPack.id.toString())
+    }
+
+    override suspend fun getAllConfigPacks(): List<ConfigPack> {
+        val localConfigPacks = configPackDao.getAllConfigPacks()
+        return localConfigPacks.map { localConfigPack ->
+            ConfigPack(
+                id = UUID.fromString(localConfigPack.id),
+                name = localConfigPack.name,
+                systemMessage = localConfigPack.systemMessage,
+                maxLength = localConfigPack.maxLength,
+                temperature = localConfigPack.temperature,
+                frequencyPenalty = localConfigPack.frequencyPenalty,
+                presencePenalty = localConfigPack.presencePenalty,
+                model = localConfigPack.model
+            )
+        }
+    }
+
+//    override suspend fun findConfigPackByName(name: String): ConfigPack? {
+//        // TODO: Implement finding a configPack by name in the database
+//    }
  
 ``` 
  
@@ -137,9 +286,14 @@ package com.example.hello_world.data.repository
 
 
 
+
+
 class LocalRoomConversationRepository(context: Context) : IConversationRepository {
     private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
-    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi = Moshi.Builder()
+        .add(UUIDJsonAdapter())
+        .add(KotlinJsonAdapterFactory())
+        .build()
     override suspend fun saveConversation(conversation: Conversation) {
         Log.d("LocalRoomRepo", "Saving conversation with ID: ${conversation.id}")
         val configPackJson = moshi.adapter(ConfigPack::class.java).toJson(conversation.configPack)
@@ -226,6 +380,18 @@ class LocalRoomConversationRepository(context: Context) : IConversationRepositor
                 }
             }.filterNotNull()
         }
+    }
+}
+
+class UUIDJsonAdapter {
+    @ToJson
+    fun toJson(uuid: UUID): String {
+        return uuid.toString()
+    }
+
+    @FromJson
+    fun fromJson(uuidString: String): UUID {
+        return UUID.fromString(uuidString)
     }
  
 ``` 

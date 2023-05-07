@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 composable("sessions") {
-                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository) }
+                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository,this@MainActivity) }
                     SavedConversationsScreen(
                         viewModel = savedConversationsViewModel,
                         onConversationSelected = { conversationId ->

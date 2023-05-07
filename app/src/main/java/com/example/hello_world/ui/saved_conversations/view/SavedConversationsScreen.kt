@@ -1,6 +1,12 @@
 package com.example.hello_world
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.hello_world.models.Conversation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -45,7 +53,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewModelScope
 import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 @ExperimentalMaterial3Api
@@ -56,8 +67,30 @@ fun SavedConversationsScreen(
     onBack: () -> Unit,
     onNewConversationClicked: () -> Unit
 ) {
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            // Call exportConversations() here
+            viewModel.viewModelScope.launch {
+                viewModel.exportConversations()
+            }
+        } else {
+            // Show a message to the user that the permission is required
+//            Toast.makeText(context, "Permission is required to export conversations", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val context = LocalContext.current // Move this line outside the rememberLauncherForActivityResult block
+    val filePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val contentResolver = context.contentResolver
+            val json = contentResolver.openInputStream(uri)?.bufferedReader().use { it?.readText() }
+            if (json != null) {
+                viewModel.viewModelScope.launch {
+                    viewModel.importConversations(json)
+                }
+            }
+        }
+    }
     val savedConversations by viewModel.savedConversations.collectAsState(initial = emptyList<Conversation>())
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -70,6 +103,31 @@ fun SavedConversationsScreen(
                 actions = {
                     IconButton(onClick = onNewConversationClicked) {
                         Icon(Icons.Default.Add, contentDescription = "New Conversation")
+                    }
+                    IconButton(onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            if (context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                                // Call exportConversations() here if the permission is already granted
+                                viewModel.viewModelScope.launch {
+                                    viewModel.exportConversations()
+                                }
+                            } else {
+                                // Request the permission
+                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            }
+                        } else {
+                            // Call exportConversations() here for Android versions below 6.0
+                            viewModel.viewModelScope.launch {
+                                viewModel.exportConversations()
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Export Conversations")
+                    }
+                    IconButton(onClick = {
+                        filePickerLauncher.launch("*/*")
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Import Conversations")
                     }
                 }
             )
@@ -98,7 +156,8 @@ fun SavedConversationsScreen(
                 }
             }
         }
-    }}
+    }
+}
 
 @Composable
 fun CardElevation(

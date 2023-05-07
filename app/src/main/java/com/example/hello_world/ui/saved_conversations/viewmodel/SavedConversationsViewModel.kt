@@ -1,5 +1,6 @@
 package com.example.hello_world.ui.saved_conversations.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hello_world.data.repository.IConversationRepository
@@ -12,7 +13,8 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 class SavedConversationsViewModel(
-    private val conversationRepository: IConversationRepository
+    private val conversationRepository: IConversationRepository,
+    private val context: Context // Add the context parameter
 ) : ViewModel() {
     private val _savedConversations = MutableStateFlow<List<Conversation>>(emptyList())
     val savedConversations: StateFlow<List<Conversation>> = _savedConversations
@@ -33,6 +35,15 @@ class SavedConversationsViewModel(
     private suspend fun loadSavedConversations(): List<Conversation> {
         // Replace the TODO with the actual implementation
         return conversationRepository.loadAllConversations()
+    }
+
+    suspend fun exportConversations(): String {
+        return conversationRepository.exportConversations()
+    }
+
+    suspend fun importConversations(json: String) {
+        conversationRepository.importConversations(json)
+        _savedConversations.value = loadSavedConversations()
     }
 
     // Implement methods for deleting saved conversations
