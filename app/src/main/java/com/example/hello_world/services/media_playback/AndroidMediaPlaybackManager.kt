@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.util.Log
 import android.widget.MediaController
 import android.widget.Toast
+import java.io.IOException
 
 class AndroidMediaPlaybackManager : MediaPlaybackManager {
     var mediaPlayer: MediaPlayer? = null
@@ -49,17 +50,22 @@ class AndroidMediaPlaybackManager : MediaPlaybackManager {
             }
         } else {
             mediaPlayer?.release()
-            mediaPlayer = MediaPlayer().apply {
-                Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath")
-                setDataSource(filePath)
-                setOnCompletionListener {
-                    resetPlaybackPosition()
-                    onFinish?.invoke()
-                    seekTo(0)
+            try {
+                mediaPlayer = MediaPlayer().apply {
+                    Log.d("AndroidMediaPlaybackManager", "Playing audio from file: $filePath")
+                    setDataSource(filePath)
+                    setOnCompletionListener {
+                        resetPlaybackPosition()
+                        onFinish?.invoke()
+                        seekTo(0)
+                    }
+                    prepare()
+                    start()
                 }
-                prepare()
-                start()
-
+                currentFilePath = filePath // Update the currentFilePath here
+            } catch (e: IOException) {
+                Toast.makeText(context, "Audio file not found or corrupted", Toast.LENGTH_SHORT).show()
+                Log.e("AndroidMediaPlaybackManager", "Error setting data source for media player", e)
             }
             currentFilePath = filePath // Update the currentFilePath here
         }
