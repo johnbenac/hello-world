@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- This manifest declares the backup rules for this app. It uses the
-     backup_rules.xml file to define what data the app will back up. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.hello_world"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -26,6 +24,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- Add the FileProvider here -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.hello_world.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
+    </application>
 </manifest>
