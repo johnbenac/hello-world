@@ -314,9 +314,10 @@ fun SessionScreen(
                 onClick = {
                     // Get the "system" message from the selected config pack
                     val systemMessage = "System: ${configPacksViewModel.selectedConfigPack?.systemMessage}\n"
+                    Log.d("SessionScreen", "systemMessage: $systemMessage")
 
                     // Modify the conversationText to include the "user" or "assistant" prefix
-                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n") { message ->
+                    val conversationText = sessionViewModel.conversationMessages.joinToString("\n\n\n") { message ->
                         "${message.sender}: ${message.message}"
                     }
 
@@ -327,7 +328,7 @@ fun SessionScreen(
                     // Add this block of code to create and launch the share intent
                     val sendIntent: Intent = Intent().apply {
                         action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, conversationText)
+                        putExtra(Intent.EXTRA_TEXT, fullText)
                         type = "text/plain"
                     }
 
