@@ -58,6 +58,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversationsViewModel
 import kotlinx.coroutines.launch
 
+
 @Composable
 @ExperimentalMaterial3Api
 @OptIn(ExperimentalMaterialApi::class)
@@ -69,15 +70,19 @@ fun SavedConversationsScreen(
 ) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
+            Log.d("SavedConversationsScreen", "Permission granted, calling exportConversations()")
             // Call exportConversations() here
             viewModel.viewModelScope.launch {
                 viewModel.exportConversations()
             }
         } else {
+            Log.d("SavedConversationsScreen", "Permission denied")
             // Show a message to the user that the permission is required
 //            Toast.makeText(context, "Permission is required to export conversations", Toast.LENGTH_SHORT).show()
         }
     }
+
+
     val context = LocalContext.current // Move this line outside the rememberLauncherForActivityResult block
     val filePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -102,24 +107,14 @@ fun SavedConversationsScreen(
                 },
                 actions = {
                     IconButton(onClick = onNewConversationClicked) {
+                        Log.d("SavedConversationsScreen", "Export button clicked, requesting WRITE_EXTERNAL_STORAGE permission")
+                        permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         Icon(Icons.Default.Add, contentDescription = "New Conversation")
                     }
                     IconButton(onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            if (context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                                // Call exportConversations() here if the permission is already granted
-                                viewModel.viewModelScope.launch {
-                                    viewModel.exportConversations()
-                                }
-                            } else {
-                                // Request the permission
-                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                            }
-                        } else {
-                            // Call exportConversations() here for Android versions below 6.0
-                            viewModel.viewModelScope.launch {
-                                viewModel.exportConversations()
-                            }
+                        Log.d("SavedConversationsScreen", "Export button clicked, calling exportConversations()")
+                        viewModel.viewModelScope.launch {
+                            viewModel.exportConversations()
                         }
                     }) {
                         Icon(Icons.Default.ArrowForward, contentDescription = "Export Conversations")
@@ -158,6 +153,7 @@ fun SavedConversationsScreen(
         }
     }
 }
+
 
 @Composable
 fun CardElevation(
