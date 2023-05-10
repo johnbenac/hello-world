@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,6 +124,9 @@ fun SavedConversationsScreen(
                         filePickerLauncher.launch("*/*")
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Import Conversations")
+                    }
+                    IconButton(onClick = { /* TODO: Navigate to GoogleDriveBackupScreen */ }) {
+                        Icon(Icons.Default.Star, contentDescription = "Google Drive Backup")
                     }
                 }
             )
