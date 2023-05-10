@@ -67,7 +67,8 @@ fun SavedConversationsScreen(
     viewModel: SavedConversationsViewModel,
     onConversationSelected: (UUID) -> Unit,
     onBack: () -> Unit,
-    onNewConversationClicked: () -> Unit
+    onNewConversationClicked: () -> Unit,
+    onGoogleDriveBackupClicked: () -> Unit
 ) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
@@ -125,7 +126,7 @@ fun SavedConversationsScreen(
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Import Conversations")
                     }
-                    IconButton(onClick = { /* TODO: Navigate to GoogleDriveBackupScreen */ }) {
+                    IconButton(onClick = onGoogleDriveBackupClicked) {
                         Icon(Icons.Default.Star, contentDescription = "Google Drive Backup")
                     }
                 }

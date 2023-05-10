@@ -10,12 +10,9 @@ class GoogleDriveBackupViewModel : ViewModel() {
         googleDriveHelper.authenticate()
     }
 
-    fun createFolder() {
-        googleDriveHelper.createFolder()
-    }
-
     fun backup() {
         googleDriveHelper.backup()
+        googleDriveHelper.createFolder()
     }
 
     fun restore() {

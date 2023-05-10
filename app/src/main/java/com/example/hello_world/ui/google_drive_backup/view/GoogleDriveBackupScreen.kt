@@ -15,9 +15,6 @@ fun GoogleDriveBackupScreen() {
         Button(onClick = { viewModel.authenticate() }) {
             Text("Authenticate with Google")
         }
-        Button(onClick = { viewModel.createFolder() }) {
-            Text("Create Folder")
-        }
         Button(onClick = { viewModel.backup() }) {
             Text("Backup")
         }

@@ -32,6 +32,7 @@ import com.example.hello_world.ui.saved_conversations.viewmodel.SavedConversatio
 import com.example.hello_world.ui.session.viewmodel.SessionViewModel
 import com.example.hello_world.ui.session.viewmodel.SessionViewModelFactory
 import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
+import com.example.hello_world.ui.google_drive_backup.view.GoogleDriveBackupScreen
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -112,7 +113,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 composable("sessions") {
-                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository,this@MainActivity) }
+                    val savedConversationsViewModel = remember { SavedConversationsViewModel(conversationRepository, this@MainActivity) }
                     SavedConversationsScreen(
                         viewModel = savedConversationsViewModel,
                         onConversationSelected = { conversationId ->
@@ -129,8 +130,12 @@ class MainActivity : AppCompatActivity() {
                                 navController.navigate("session/${newConversationId.toString()}")
                                 sessionViewModel.loadConversationWithId(newConversationId)
                             }
-                        }
+                        },
+                        onGoogleDriveBackupClicked = { navController.navigate("googleDriveBackup") }
                     )
+                }
+                composable("googleDriveBackup") {
+                    GoogleDriveBackupScreen()
                 }
                 composable("configPacks") {
                     Text("Placeholder for ConfigPacksScreen")
