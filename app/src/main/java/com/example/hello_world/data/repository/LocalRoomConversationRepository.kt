@@ -262,11 +262,17 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
                 val audioFilePath = message.audioFilePath.value
                 if (audioFilePath.isNotEmpty()) {
                     val sourceFile = File(audioFilePath)
-                    val destinationFile = File(audioFolder, sourceFile.name)
-                    if (!destinationFile.exists()) { // Add this check
-                        withContext(Dispatchers.IO) {
-                            sourceFile.copyTo(destinationFile, overwrite = true)
+                    if (sourceFile.exists()) {
+                        val destinationFile = File(audioFolder, sourceFile.name)
+                        if (!destinationFile.exists()) {
+                            withContext(Dispatchers.IO) {
+                                sourceFile.copyTo(destinationFile, overwrite = true)
+                            }
+                        } else {
+                            Log.d("LocalRoomRepo", "Destination file already exists, skipping: ${destinationFile.absolutePath}")
                         }
+                    } else {
+                        Log.w("LocalRoomRepo", "Source file not found: $audioFilePath")
                     }
                 }
             }
