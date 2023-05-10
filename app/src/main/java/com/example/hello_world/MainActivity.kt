@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 composable("googleDriveBackup") {
-                    GoogleDriveBackupScreen()
+                    GoogleDriveBackupScreen(activityResultRegistry)
                 }
                 composable("configPacks") {
                     Text("Placeholder for ConfigPacksScreen")
