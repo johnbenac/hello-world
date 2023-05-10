@@ -7,6 +7,7 @@ import com.example.hello_world.data.repository.IConversationRepository
 import com.example.hello_world.managers.ConversationsManager
 import com.example.hello_world.models.ConfigPack
 import com.example.hello_world.models.Conversation
+import com.example.hello_world.services.local_backup.LocalBackupHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,6 +17,7 @@ class SavedConversationsViewModel(
     private val conversationRepository: IConversationRepository,
     private val context: Context // Add the context parameter
 ) : ViewModel() {
+    private val localBackupHelper = LocalBackupHelper(context, conversationRepository)
     private val _savedConversations = MutableStateFlow<List<Conversation>>(emptyList())
     val savedConversations: StateFlow<List<Conversation>> = _savedConversations
     private val conversationsManager = ConversationsManager(conversationRepository)
@@ -37,13 +39,16 @@ class SavedConversationsViewModel(
         return conversationRepository.loadAllConversations()
     }
 
-    suspend fun exportConversations(): String {
-        return conversationRepository.exportConversations()
+    fun exportConversations() {
+        viewModelScope.launch {
+            localBackupHelper.exportConversations()
+        }
     }
 
-    suspend fun importConversations(json: String) {
-        conversationRepository.importConversations(json)
-        _savedConversations.value = loadSavedConversations()
+    fun importConversations(json: String) {
+        viewModelScope.launch {
+            localBackupHelper.importConversations(json)
+        }
     }
 
     // Implement methods for deleting saved conversations

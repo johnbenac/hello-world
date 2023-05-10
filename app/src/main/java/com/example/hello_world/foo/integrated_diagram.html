@@ -14,22 +14,43 @@
     <div class="mermaid">
 classDiagram
     %% Package: com.example.hello_world
-    class ConversationManager {
-        + conversation: Conversation
-    }
-    %% Package: com.example.hello_world
-    class ConversationsManager {
-        private conversationRepository: IConversationRepository
-    }
-    %% Package: com.example.hello_world
     class MainActivity {
         &lt;&lt;ExperimentalMaterial3Api&gt;&gt;
+        &lt;&lt;MainActivity&gt;&gt;
+        &lt;&lt;MainActivity&gt;&gt;
         private textToSpeechService: TextToSpeechService?
-        lateinit voiceTriggerDetector: VoiceTriggerDetector
+        private voiceTriggerDetector: VoiceTriggerDetector?
         lateinit openAiApiService: OpenAiApiService
-        lateinit sessionViewModel: SessionViewModel
+        lateinit configPackRepository: LocalRoomConfigPackRepository
+        lateinit conversationRepository: LocalRoomConversationRepository
+        lateinit configPacksViewModel: ConfigPacksViewModel
+        lateinit textToSpeechServiceState: MutableState&lt;TextToSpeechService&gt;
+        lateinit snackbarHostState: SnackbarHostState
+        + sessionViewModel: SessionViewModel
     }
-    %% Package: data.local.dao
+    %% Package: local.configpack.dao
+    class LocalConfigPackDao {
+        &lt;&lt;Interface&gt;&gt;
+        &lt;&lt;Dao&gt;&gt;
+        &lt;&lt;Insert&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+        &lt;&lt;Query&gt;&gt;
+    }
+    %% Package: local.configpack.entities
+    class LocalConfigPackEntity {
+        &lt;&lt;Data Class&gt;&gt;
+        &lt;&lt;Entity&gt;&gt;
+        &lt;&lt;PrimaryKey&gt;&gt;
+        + id: String
+        + name: String
+        + systemMessage: String
+        + maxLength: Int
+        + temperature: Double
+        + frequencyPenalty: Double
+        + presencePenalty: Double
+        + model: String
+    }
+    %% Package: local.conversation.dao
     class LocalConversationDao {
         &lt;&lt;Interface&gt;&gt;
         &lt;&lt;Dao&gt;&gt;
@@ -42,13 +63,13 @@ classDiagram
         &lt;&lt;Query&gt;&gt;
         &lt;&lt;Query&gt;&gt;
     }
-    %% Package: data.local.database
+    %% Package: local.conversation.database
     class LocalConversationDatabase {
         &lt;&lt;Database&gt;&gt;
         &lt;&lt;Volatile&gt;&gt;
         private INSTANCE: LocalConversationDatabase?
     }
-    %% Package: data.local.entities
+    %% Package: local.conversation.entities
     class LocalConversationEntity {
         &lt;&lt;Data Class&gt;&gt;
         &lt;&lt;Entity&gt;&gt;
@@ -61,7 +82,7 @@ classDiagram
         + dateLastSaved: Long
         + messageCount: Int
     }
-    %% Package: data.local.entities
+    %% Package: local.conversation.entities
     class LocalConversationMessageEntity {
         &lt;&lt;Data Class&gt;&gt;
         &lt;&lt;Entity&gt;&gt;
@@ -73,15 +94,41 @@ classDiagram
         + audioFilePath: String
     }
     %% Package: hello_world.data.repository
+    class ConfigPackRepository {
+        &lt;&lt;Interface&gt;&gt;
+    }
+    %% Package: hello_world.data.repository
+    class IConfigPackRepository {
+        &lt;&lt;Interface&gt;&gt;
+    }
+    %% Package: hello_world.data.repository
     class IConversationRepository {
         &lt;&lt;Interface&gt;&gt;
     }
     %% Package: hello_world.data.repository
+    class LocalRoomConfigPackRepository {
+    }
+    %% Package: hello_world.data.repository
     class LocalRoomConversationRepository {
+        &lt;&lt;ToJson&gt;&gt;
+        &lt;&lt;FromJson&gt;&gt;
+        &lt;&lt;ToJson&gt;&gt;
+        &lt;&lt;FromJson&gt;&gt;
+        private context: Context
+        + conversations: List&lt;Conversation&gt;
+    }
+    %% Package: example.hello_world.managers
+    class ConversationManager {
+        + conversation: Conversation
+    }
+    %% Package: example.hello_world.managers
+    class ConversationsManager {
+        private conversationRepository: IConversationRepository
     }
     %% Package: example.hello_world.models
     class ConfigPack {
         &lt;&lt;Data Class&gt;&gt;
+        + id: UUID
         + name: String
         + systemMessage: String
         + maxLength: Int
@@ -89,6 +136,9 @@ classDiagram
         + frequencyPenalty: Double
         + presencePenalty: Double
         + model: String
+    }
+    %% Package: example.hello_world.models
+    class ConfigPacks {
     }
     %% Package: example.hello_world.models
     class Conversation {
@@ -131,7 +181,7 @@ classDiagram
         + model: String
         + stream: Boolean
         private apiKey: String
-        private settingsViewModel: SettingsViewModel
+        private configPacksViewModel: ConfigPacksViewModel
         private timeoutInSeconds: Long
     }
     %% Package: hello_world.services.media_playback
@@ -167,12 +217,20 @@ classDiagram
         private voiceId: String
         private context: Context
         override mediaPlaybackManager: MediaPlaybackManager
+        private snackbarHostState: SnackbarHostState
         private lastGeneratedAudioFilePath: String?
+        + text: String
+        + voice_settings: Map&lt;String
     }
     %% Package: hello_world.services.text_to_speech
     class TextToSpeechService {
         &lt;&lt;Interface&gt;&gt;
         + mediaPlaybackManager: MediaPlaybackManager
+    }
+    %% Package: ui.ConfigPacks.viewmodel
+    class ConfigPacksViewModel {
+        private configPackRepository: IConfigPackRepository
+        private context: Context
     }
     %% Package: ui.home.viewmodel
     class HomeViewModel {
@@ -180,22 +238,28 @@ classDiagram
     %% Package: ui.saved_conversations.viewmodel
     class SavedConversationsViewModel {
         private conversationRepository: IConversationRepository
+        private context: Context
         + savedConversations: StateFlow&lt;List&lt;Conversation&gt;&gt;
     }
     %% Package: ui.session.viewmodel
     class SessionViewModel {
         + conversationId: UUID?
         + context: Context
-        + settingsViewModel: SettingsViewModel
+        + configPacksViewModel: ConfigPacksViewModel
         + openAiApiService: OpenAiApiService
         + conversationRepository: IConversationRepository
         + textToSpeechServiceState: MutableState&lt;TextToSpeechService&gt;?
+        private snackbarHostState: SnackbarHostState
         + mediaPlaybackManager: MediaPlaybackManager
         + isAppSpeaking: Boolean
         + isListening: Boolean
-    }
-    %% Package: ui.settings.viewmodel
-    class SettingsViewModel {
+        private conversationId: UUID?
+        private context: Context
+        private configPacksViewModel: ConfigPacksViewModel
+        private openAiApiService: OpenAiApiService
+        private conversationRepository: IConversationRepository
+        private textToSpeechServiceState: MutableState&lt;TextToSpeechService&gt;
+        private snackbarHostState: SnackbarHostState
     }
     %% Package: example.hello_world.utils
     class diagram {
@@ -204,13 +268,11 @@ classDiagram
         &lt;&lt;ExperimentalMaterial3Api&gt;&gt;
         &lt;&lt;Composable&gt;&gt;
     }
-    ConversationManager --> Conversation : association
-    ConversationsManager --> IConversationRepository : association
-    ConversationsManager --> Conversation : dependency
-    ConversationsManager --> Conversation : realization
     MainActivity --> AppCompatActivity : inheritance
     MainActivity --> AppCompatActivity : interface
-    MainActivity --> VoiceTriggerDetector : association
+    MainActivity --> LocalRoomConfigPackRepository : association
+    MainActivity --> LocalRoomConversationRepository : association
+    MainActivity --> ConfigPacksViewModel : association
     MainActivity --> SessionViewModel : association
     LocalConversationDao --> LocalConversationEntity : dependency
     LocalConversationDao --> LocalConversationEntity : realization
@@ -218,27 +280,41 @@ classDiagram
     LocalConversationDatabase --> RoomDatabase : interface
     LocalConversationDatabase --> LocalConversationDao : dependency
     LocalConversationDatabase --> LocalConversationDao : realization
+    LocalConversationDatabase --> LocalConfigPackDao : dependency
+    LocalConversationDatabase --> LocalConfigPackDao : realization
     LocalConversationDatabase --> LocalConversationDatabase : dependency
     LocalConversationDatabase --> LocalConversationDatabase : realization
+    ConfigPackRepository --> ConfigPackRepository : interface
+    ConfigPackRepository --> ConfigPack : dependency
+    ConfigPackRepository --> ConfigPack : realization
+    ConfigPackRepository --> ConfigPack : dependency
+    ConfigPackRepository --> ConfigPack : realization
     IConversationRepository --> Conversation : dependency
     IConversationRepository --> Conversation : realization
+    LocalRoomConfigPackRepository --> ConfigPack : dependency
+    LocalRoomConfigPackRepository --> ConfigPack : realization
     LocalRoomConversationRepository --> Conversation : dependency
     LocalRoomConversationRepository --> Conversation : realization
+    ConversationManager --> Conversation : association
+    ConversationsManager --> IConversationRepository : association
+    ConversationsManager --> Conversation : dependency
+    ConversationsManager --> Conversation : realization
     Conversation --> ConfigPack : association
-    OpenAiMessage --> SettingsViewModel : association
+    OpenAiMessage --> ConfigPacksViewModel : association
     AndroidMediaPlaybackManager --> MediaPlaybackManager : inheritance
     AndroidMediaPlaybackManager --> MediaPlaybackManager : interface
     AndroidTextToSpeechService --> MediaPlaybackManager : association
     ElevenLabsTextToSpeechService --> MediaPlaybackManager : association
     TextToSpeechService --> MediaPlaybackManager : association
+    ConfigPacksViewModel --> IConfigPackRepository : association
     HomeViewModel --> ViewModel : inheritance
     HomeViewModel --> ViewModel : interface
     SavedConversationsViewModel --> IConversationRepository : association
-    SessionViewModel --> SettingsViewModel : association
+    SessionViewModel --> ConfigPacksViewModel : association
     SessionViewModel --> IConversationRepository : association
     SessionViewModel --> MediaPlaybackManager : association
-    SettingsViewModel --> ViewModel : inheritance
-    SettingsViewModel --> ViewModel : interface
+    SessionViewModel --> ConfigPacksViewModel : association
+    SessionViewModel --> IConversationRepository : association
     </div>
 
     <script>

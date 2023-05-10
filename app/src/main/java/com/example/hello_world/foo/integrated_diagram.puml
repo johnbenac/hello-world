@@ -1,26 +1,46 @@
 @startuml
 package com.example.hello_world {
-    class ConversationManager {
-        + conversation: Conversation
-    }
-}
-package com.example.hello_world {
-    class ConversationsManager {
-        private conversationRepository: IConversationRepository
-        suspend loadConversation(conversationId: UUID): Conversation
-        suspend loadAllConversations(): List<Conversation>
-    }
-}
-package com.example.hello_world {
     class MainActivity {
         <<ExperimentalMaterial3Api>>
+        <<MainActivity>>
+        <<MainActivity>>
         private textToSpeechService: TextToSpeechService?
-        lateinit voiceTriggerDetector: VoiceTriggerDetector
+        private voiceTriggerDetector: VoiceTriggerDetector?
         lateinit openAiApiService: OpenAiApiService
-        lateinit sessionViewModel: SessionViewModel
+        lateinit configPackRepository: LocalRoomConfigPackRepository
+        lateinit conversationRepository: LocalRoomConversationRepository
+        lateinit configPacksViewModel: ConfigPacksViewModel
+        lateinit textToSpeechServiceState: MutableState<TextToSpeechService>
+        lateinit snackbarHostState: SnackbarHostState
+        + sessionViewModel: SessionViewModel
     }
 }
-package data.local.dao {
+package local.configpack.dao {
+    class LocalConfigPackDao {
+        <<Interface>>
+        <<Dao>>
+        <<Insert>>
+        <<Query>>
+        <<Query>>
+        suspend getAllConfigPacks(): List<LocalConfigPackEntity>
+    }
+}
+package local.configpack.entities {
+    class LocalConfigPackEntity {
+        <<Data Class>>
+        <<Entity>>
+        <<PrimaryKey>>
+        + id: String
+        + name: String
+        + systemMessage: String
+        + maxLength: Int
+        + temperature: Double
+        + frequencyPenalty: Double
+        + presencePenalty: Double
+        + model: String
+    }
+}
+package local.conversation.dao {
     class LocalConversationDao {
         <<Interface>>
         <<Dao>>
@@ -37,18 +57,19 @@ package data.local.dao {
         suspend getAllConversations(): List<LocalConversationEntity>
     }
 }
-package data.local.database {
+package local.conversation.database {
     class LocalConversationDatabase {
         <<Database>>
         <<Volatile>>
         private INSTANCE: LocalConversationDatabase?
         abstract conversationDao(): LocalConversationDao
+        abstract configPackDao(): LocalConfigPackDao
         + getInstance(context: Context): LocalConversationDatabase
         private INSTANCE: LocalConversationDatabase?
         + context: Context(: LocalConversationDatabase): Unit
     }
 }
-package data.local.entities {
+package local.conversation.entities {
     class LocalConversationEntity {
         <<Data Class>>
         <<Entity>>
@@ -62,7 +83,7 @@ package data.local.entities {
         + messageCount: Int
     }
 }
-package data.local.entities {
+package local.conversation.entities {
     class LocalConversationMessageEntity {
         <<Data Class>>
         <<Entity>>
@@ -75,14 +96,61 @@ package data.local.entities {
     }
 }
 package hello_world.data.repository {
+    class ConfigPackRepository {
+        <<Interface>>
+        + getAllConfigPacks(): List<ConfigPack>
+        + findConfigPackByName(name: String): ConfigPack
+        override getAllConfigPacks(): List<ConfigPack>
+        override findConfigPackByName(name: String): ConfigPack
+    }
+}
+package hello_world.data.repository {
+    class IConfigPackRepository {
+        <<Interface>>
+        suspend getAllConfigPacks(): List<ConfigPack>
+    }
+}
+package hello_world.data.repository {
     class IConversationRepository {
         <<Interface>>
         suspend loadConversation(conversationId: UUID): Conversation
         suspend loadAllConversations(): List<Conversation>
+        suspend exportConversations(): String
+    }
+}
+package hello_world.data.repository {
+    class LocalRoomConfigPackRepository {
+        suspend getAllConfigPacks(): List<ConfigPack>
+        suspend findConfigPackByName(name: String): ConfigPack
     }
 }
 package hello_world.data.repository {
     class LocalRoomConversationRepository {
+        <<ToJson>>
+        <<FromJson>>
+        <<ToJson>>
+        <<FromJson>>
+        private context: Context
+        + conversations: List<Conversation>
+        suspend loadConversation(conversationId: UUID): Conversation
+        suspend loadAllConversations(): List<Conversation>
+        suspend saveExportedFile(context: Context, fileName: String, jsonString: String): Uri
+        suspend exportConversations(): String
+        suspend copyAudioFilesToExternal(conversations: List<Conversation>, context: Context): String
+        + toJson(uuid: UUID): String
+        + fromJson(uuidString: String): UUID
+        + toJson(state: MutableState<String>): String
+        + fromJson(string: String): MutableState<String>
+    }
+}
+package example.hello_world.managers {
+    class ConversationManager {
+        + conversation: Conversation
+    }
+}
+package example.hello_world.managers {
+    class ConversationsManager {
+        private conversationRepository: IConversationRepository
         suspend loadConversation(conversationId: UUID): Conversation
         suspend loadAllConversations(): List<Conversation>
     }
@@ -90,6 +158,7 @@ package hello_world.data.repository {
 package example.hello_world.models {
     class ConfigPack {
         <<Data Class>>
+        + id: UUID
         + name: String
         + systemMessage: String
         + maxLength: Int
@@ -97,6 +166,10 @@ package example.hello_world.models {
         + frequencyPenalty: Double
         + presencePenalty: Double
         + model: String
+    }
+}
+package example.hello_world.models {
+    class ConfigPacks {
     }
 }
 package example.hello_world.models {
@@ -143,7 +216,7 @@ package hello_world.services.AI_Predictive {
         + model: String
         + stream: Boolean
         private apiKey: String
-        private settingsViewModel: SettingsViewModel
+        private configPacksViewModel: ConfigPacksViewModel
         private timeoutInSeconds: Long
         suspend sendMessage(conversationHistory: List<ConversationMessage>): String
     }
@@ -197,8 +270,12 @@ package hello_world.services.text_to_speech {
         private voiceId: String
         private context: Context
         override mediaPlaybackManager: MediaPlaybackManager
+        private snackbarHostState: SnackbarHostState
         private lastGeneratedAudioFilePath: String?
+        + text: String
+        + voice_settings: Map<String
         override renderSpeech(text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
+        private renderSpeechInternal(coroutineScope: CoroutineScope, text: String, onFinish: (() -> Unit)?, onStart: (() -> Unit)?, audioFilePathState: MutableState<String>): String
         override getAudioFilePath(): String
         private createTtsRequestBody(text: String): RequestBody
         private buildTtsRequest(requestBody: RequestBody): Request
@@ -212,6 +289,12 @@ package hello_world.services.text_to_speech {
         + getAudioFilePath(): String
     }
 }
+package ui.ConfigPacks.viewmodel {
+    class ConfigPacksViewModel {
+        private configPackRepository: IConfigPackRepository
+        private context: Context
+    }
+}
 package ui.home.viewmodel {
     class HomeViewModel {
     }
@@ -219,25 +302,32 @@ package ui.home.viewmodel {
 package ui.saved_conversations.viewmodel {
     class SavedConversationsViewModel {
         private conversationRepository: IConversationRepository
+        private context: Context
         + savedConversations: StateFlow<List<Conversation>>
+        suspend createNewConversation(): UUID
         suspend loadSavedConversations(): List<Conversation>
+        suspend exportConversations(): String
     }
 }
 package ui.session.viewmodel {
     class SessionViewModel {
         + conversationId: UUID?
         + context: Context
-        + settingsViewModel: SettingsViewModel
+        + configPacksViewModel: ConfigPacksViewModel
         + openAiApiService: OpenAiApiService
         + conversationRepository: IConversationRepository
         + textToSpeechServiceState: MutableState<TextToSpeechService>?
+        private snackbarHostState: SnackbarHostState
         + mediaPlaybackManager: MediaPlaybackManager
         + isAppSpeaking: Boolean
         + isListening: Boolean
-    }
-}
-package ui.settings.viewmodel {
-    class SettingsViewModel {
+        private conversationId: UUID?
+        private context: Context
+        private configPacksViewModel: ConfigPacksViewModel
+        private openAiApiService: OpenAiApiService
+        private conversationRepository: IConversationRepository
+        private textToSpeechServiceState: MutableState<TextToSpeechService>
+        private snackbarHostState: SnackbarHostState
     }
 }
 package example.hello_world.utils {
@@ -248,13 +338,11 @@ package example.hello_world.utils {
         <<Composable>>
     }
 }
-ConversationManager --> Conversation : association
-ConversationsManager --> IConversationRepository : association
-ConversationsManager --> Conversation : dependency
-ConversationsManager --> Conversation : realization
 MainActivity --> AppCompatActivity : inheritance
 MainActivity --> AppCompatActivity : interface
-MainActivity --> VoiceTriggerDetector : association
+MainActivity --> LocalRoomConfigPackRepository : association
+MainActivity --> LocalRoomConversationRepository : association
+MainActivity --> ConfigPacksViewModel : association
 MainActivity --> SessionViewModel : association
 LocalConversationDao --> LocalConversationEntity : dependency
 LocalConversationDao --> LocalConversationEntity : realization
@@ -262,25 +350,39 @@ LocalConversationDatabase --> RoomDatabase : inheritance
 LocalConversationDatabase --> RoomDatabase : interface
 LocalConversationDatabase --> LocalConversationDao : dependency
 LocalConversationDatabase --> LocalConversationDao : realization
+LocalConversationDatabase --> LocalConfigPackDao : dependency
+LocalConversationDatabase --> LocalConfigPackDao : realization
 LocalConversationDatabase --> LocalConversationDatabase : dependency
 LocalConversationDatabase --> LocalConversationDatabase : realization
+ConfigPackRepository --> ConfigPackRepository : interface
+ConfigPackRepository --> ConfigPack : dependency
+ConfigPackRepository --> ConfigPack : realization
+ConfigPackRepository --> ConfigPack : dependency
+ConfigPackRepository --> ConfigPack : realization
 IConversationRepository --> Conversation : dependency
 IConversationRepository --> Conversation : realization
+LocalRoomConfigPackRepository --> ConfigPack : dependency
+LocalRoomConfigPackRepository --> ConfigPack : realization
 LocalRoomConversationRepository --> Conversation : dependency
 LocalRoomConversationRepository --> Conversation : realization
+ConversationManager --> Conversation : association
+ConversationsManager --> IConversationRepository : association
+ConversationsManager --> Conversation : dependency
+ConversationsManager --> Conversation : realization
 Conversation --> ConfigPack : association
-OpenAiMessage --> SettingsViewModel : association
+OpenAiMessage --> ConfigPacksViewModel : association
 AndroidMediaPlaybackManager --> MediaPlaybackManager : inheritance
 AndroidMediaPlaybackManager --> MediaPlaybackManager : interface
 AndroidTextToSpeechService --> MediaPlaybackManager : association
 ElevenLabsTextToSpeechService --> MediaPlaybackManager : association
 TextToSpeechService --> MediaPlaybackManager : association
+ConfigPacksViewModel --> IConfigPackRepository : association
 HomeViewModel --> ViewModel : inheritance
 HomeViewModel --> ViewModel : interface
 SavedConversationsViewModel --> IConversationRepository : association
-SessionViewModel --> SettingsViewModel : association
+SessionViewModel --> ConfigPacksViewModel : association
 SessionViewModel --> IConversationRepository : association
 SessionViewModel --> MediaPlaybackManager : association
-SettingsViewModel --> ViewModel : inheritance
-SettingsViewModel --> ViewModel : interface
+SessionViewModel --> ConfigPacksViewModel : association
+SessionViewModel --> IConversationRepository : association
 @enduml
