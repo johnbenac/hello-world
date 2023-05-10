@@ -9,7 +9,5 @@ interface IConversationRepository {
     suspend fun deleteConversation(conversationId: UUID)
     suspend fun loadAllConversations(): List<Conversation>
 
-//    suspend fun exportConversations(): String
-//    suspend fun importConversations(json: String)
 }
 

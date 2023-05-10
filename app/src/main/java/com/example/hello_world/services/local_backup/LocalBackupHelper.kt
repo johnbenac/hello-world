@@ -145,7 +145,7 @@ class LocalBackupHelper(
             val updatedMessages = importedConversation.messages.map { message ->
                 val externalAudioFile = File(message.audioFilePath.value)
                 if (externalAudioFile.exists()) {
-                    val internalAudioFile = File(context.filesDir, "ConversationAudio/${externalAudioFile.name}")
+                    val internalAudioFile = File(context.filesDir, "${externalAudioFile.name}")
                     withContext(Dispatchers.IO) {
                         externalAudioFile.copyTo(internalAudioFile, overwrite = true)
                     }
@@ -161,7 +161,7 @@ class LocalBackupHelper(
 
     suspend fun copyAudioFilesToExternal(conversations: List<Conversation>, context: Context): String {
         val externalFolderPath = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)?.absolutePath
-        val audioFolder = File(externalFolderPath, "ConversationAudio")
+        val audioFolder = File(externalFolderPath)
         if (!audioFolder.exists()) {
             audioFolder.mkdirs()
         }

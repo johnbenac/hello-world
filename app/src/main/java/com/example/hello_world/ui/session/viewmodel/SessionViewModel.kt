@@ -99,7 +99,7 @@ class SessionViewModel(
 
         stopListening()
         val audioFilePathState = mutableStateOf("")
-        // Add user message to the conversation state
+
 
 
         val userAudioFilePathState = mutableStateOf("")
@@ -178,16 +178,16 @@ class SessionViewModel(
     }
 
     fun onTriggerWordDetected(userMessage: String) {
-        // Add user message to the conversation state
+
         Log.d("SessionViewModel", "log: onTriggerWordDetected called")
 
-        // Stop listening
+
         voiceTriggerDetector.stopListening()
         Log.d("SessionViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
 
-        // Send the user message to OpenAI API and process the response
+
         viewModelScope.launch {
-            sendUserMessageToOpenAi(userMessage) // Pass the userMessage parameter here
+            sendUserMessageToOpenAi(userMessage)
         }
         autosaveConversation()
     }

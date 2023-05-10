@@ -71,14 +71,13 @@ fun SavedConversationsScreen(
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
             Log.d("SavedConversationsScreen", "Permission granted, calling exportConversations()")
-            // Call exportConversations() here
+
             viewModel.viewModelScope.launch {
                 viewModel.exportConversations()
             }
         } else {
             Log.d("SavedConversationsScreen", "Permission denied")
-            // Show a message to the user that the permission is required
-//            Toast.makeText(context, "Permission is required to export conversations", Toast.LENGTH_SHORT).show()
+
         }
     }
 
