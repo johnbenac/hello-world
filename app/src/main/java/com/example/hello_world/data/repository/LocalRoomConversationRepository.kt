@@ -20,12 +20,15 @@ import com.squareup.moshi.FromJson
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.ToJson
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import java.util.Date
 
 
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 class LocalRoomConversationRepository(private val context: Context) : IConversationRepository {
@@ -124,17 +127,11 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
         }
     }
     suspend fun saveExportedFile(context: Context, fileName: String, jsonString: String): Uri? {
-        val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath
-        val file = File(path, fileName)
-
         val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DATA, file.absolutePath)
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
+            val downloadsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+            put(MediaStore.MediaColumns.DATA, "$downloadsPath/$fileName")
         }
 
         val contentResolver = context.contentResolver
@@ -147,16 +144,15 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
                 }
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                contentResolver.update(uri, contentValues, null, null)
-            }
+            Log.d("LocalRoomRepo", "File saved successfully with URI: $uri")
+        } else {
+            Log.d("LocalRoomRepo", "Failed to save file, URI is null")
         }
 
         return uri
     }
     override suspend fun exportConversations(): String {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         // Load all conversations with messages
         val conversations = withContext(Dispatchers.IO) {
             val conversationEntities = conversationDao.getAllConversations()
@@ -185,6 +181,7 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
         }
 
         // Copy audio files to external storage
+        Log.d("LocalRoomRepo", "Copying audio files to external storage")
         val audioFolderPath = copyAudioFilesToExternal(conversations, context)
 
         // Update audio file paths to external storage paths
@@ -202,10 +199,12 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
         val exportData = ExportData(conversations = updatedConversations)
 
         // Serialize ExportData object to JSON
+        Log.d("LocalRoomRepo", "Serializing ExportData object to JSON")
         val jsonString = moshi.adapter(ExportData::class.java).toJson(exportData)
 
         // Save the jsonString to a file
-        val exportFileName = "exported_conversations.json"
+        Log.d("LocalRoomRepo", "Saving jsonString to a file")
+        val exportFileName = "exported_conversations_$timestamp.json"
         val exportFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), exportFileName)
         withContext(Dispatchers.IO) {
             exportFile.writeText(jsonString)
@@ -218,13 +217,13 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Export successful. File saved to ${uri.path}", Toast.LENGTH_LONG).show()
             }
-            Log.d("SavedConversationsViewModel", "Export successful. File saved to ${uri.path}")
+            Log.d("LocalRoomRepo", "Export successful. File saved to ${uri.path}")
         } else {
             // Show a Toast message for a failed export
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
             }
-            Log.d("SavedConversationsViewModel", "Export failed")
+            Log.d("LocalRoomRepo", "Export failed")
         }
 
         return jsonString
@@ -264,8 +263,10 @@ class LocalRoomConversationRepository(private val context: Context) : IConversat
                 if (audioFilePath.isNotEmpty()) {
                     val sourceFile = File(audioFilePath)
                     val destinationFile = File(audioFolder, sourceFile.name)
-                    withContext(Dispatchers.IO) {
-                        sourceFile.copyTo(destinationFile, overwrite = true)
+                    if (!destinationFile.exists()) { // Add this check
+                        withContext(Dispatchers.IO) {
+                            sourceFile.copyTo(destinationFile, overwrite = true)
+                        }
                     }
                 }
             }

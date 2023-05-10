@@ -107,11 +107,12 @@ fun SavedConversationsScreen(
                 },
                 actions = {
                     IconButton(onClick = onNewConversationClicked) {
-                        Log.d("SavedConversationsScreen", "Export button clicked, requesting WRITE_EXTERNAL_STORAGE permission")
-                        permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
                         Icon(Icons.Default.Add, contentDescription = "New Conversation")
                     }
                     IconButton(onClick = {
+                        Log.d("SavedConversationsScreen", "Export button clicked, requesting WRITE_EXTERNAL_STORAGE permission")
+                        permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         Log.d("SavedConversationsScreen", "Export button clicked, calling exportConversations()")
                         viewModel.viewModelScope.launch {
                             viewModel.exportConversations()
