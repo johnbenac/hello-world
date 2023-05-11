@@ -25,26 +25,6 @@ class GoogleDriveHelper(private val activity: Activity) {
         Log.d("GoogleDriveHelper", "activity.startActivityForResult(signInIntent, RC_SIGN_IN) is : activity.startActivityForResult($signInIntent, $RC_SIGN_IN)")
     }
 
-//    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-//        Log.d("GoogleDriveHelper", "onActivityResult() called")
-//        if (requestCode == RC_SIGN_IN) {
-//            Log.d("GoogleDriveHelper", "Handling onActivityResult for RC_SIGN_IN")
-//            if (resultCode == Activity.RESULT_OK) {
-//                val task = GoogleSignIn.getSignedInAccountFromIntent(data)
-//                try {
-//                    val account = task.getResult(ApiException::class.java)
-//                    // Signed in successfully, you can now access the Google Drive API using the account object
-//                    Log.d("GoogleDriveHelper", "Signed in successfully: ${account?.displayName}, email: ${account?.email}")
-//                } catch (e: ApiException) {
-//                    Log.w("GoogleDriveHelper", "signInResult:failed code=" + e.statusCode)
-//                }
-//            } else {
-//                Log.w("GoogleDriveHelper", "signInResult:resultCode not OK, resultCode=$resultCode")
-//            }
-//        } else {
-//            Log.d("GoogleDriveHelper", "request code was $requestCode")
-//        }
-//    }
 
     fun handleSignInResult(resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK) {
@@ -55,6 +35,8 @@ class GoogleDriveHelper(private val activity: Activity) {
                 Log.d("GoogleDriveHelper", "Signed in successfully: ${account?.displayName}, email: ${account?.email}")
             } catch (e: ApiException) {
                 Log.w("GoogleDriveHelper", "signInResult:failed code=" + e.statusCode)
+                Log.w("GoogleDriveHelper", "signInResult:status=" + e.status)
+                Log.w("GoogleDriveHelper", "signInResult:message=" + e.message)
             }
         } else {
             Log.w("GoogleDriveHelper", "signInResult:resultCode not OK, resultCode=$resultCode")

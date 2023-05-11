@@ -30,7 +30,6 @@ fun GoogleDriveBackupScreen(activityResultRegistry: ActivityResultRegistry) {
         Log.d("GoogleDriveBackupScreen", "DisposableEffect called")
         val activityResult = activityResultRegistry.register("signInResult", ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
             Log.d("GoogleDriveBackupScreen", "activityResult called: resultCode=${result.resultCode}, data=${result.data}")
-//            viewModel.onActivityResult(9001, result.resultCode, result.data)
         }
         onDispose {
             Log.d("GoogleDriveBackupScreen", "onDispose called")

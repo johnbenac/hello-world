@@ -25,8 +25,5 @@ class GoogleDriveBackupViewModel(private val activity: Activity) : ViewModel() {
         googleDriveHelper.restore()
     }
 
-//    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-//        Log.d("GoogleDriveBackupVM", "onActivityResult() called")
-//        googleDriveHelper.onActivityResult(requestCode, resultCode, data)
-//    }
+
 }
