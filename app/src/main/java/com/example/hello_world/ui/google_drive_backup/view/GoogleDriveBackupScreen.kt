@@ -1,6 +1,7 @@
 package com.example.hello_world.ui.google_drive_backup.view
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,16 +27,22 @@ fun GoogleDriveBackupScreen(activityResultRegistry: ActivityResultRegistry) {
         }
     })
     DisposableEffect(Unit) {
+        Log.d("GoogleDriveBackupScreen", "DisposableEffect called")
         val activityResult = activityResultRegistry.register("signInResult", ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
-            viewModel.onActivityResult(result.resultCode, result.resultCode, result.data)
+            Log.d("GoogleDriveBackupScreen", "activityResult called: resultCode=${result.resultCode}, data=${result.data}")
+//            viewModel.onActivityResult(9001, result.resultCode, result.data)
         }
         onDispose {
+            Log.d("GoogleDriveBackupScreen", "onDispose called")
             activityResult.unregister()
         }
     }
 
     Column {
-        Button(onClick = { viewModel.authenticate() }) {
+        Button(onClick = {
+            Log.d("GoogleDriveBackupScreen", "Authenticate button clicked")
+            viewModel.authenticate()
+        }) {
             Text("Authenticate with Google")
         }
         Button(onClick = { viewModel.backup() }) {

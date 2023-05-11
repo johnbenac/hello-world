@@ -2,6 +2,7 @@ package com.example.hello_world
 
 import ConfigPackScreen
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -24,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.hello_world.data.repository.LocalRoomConfigPackRepository
 import com.example.hello_world.data.repository.LocalRoomConversationRepository
+import com.example.hello_world.services.cloud_backup.GoogleDriveHelper
 import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManager
 import com.example.hello_world.services.speech_to_text.VoiceTriggerDetector
 import com.example.hello_world.services.text_to_speech.AndroidTextToSpeechService
@@ -42,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var textToSpeechService: TextToSpeechService? = null
     private var voiceTriggerDetector: VoiceTriggerDetector? = null
     private lateinit var openAiApiService: OpenAiApiService
+    private lateinit var googleDriveHelper: GoogleDriveHelper
 
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
 
@@ -69,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestAudioPermission()
-
+        googleDriveHelper = GoogleDriveHelper(this)
         configPackRepository = LocalRoomConfigPackRepository(this)
         conversationRepository = LocalRoomConversationRepository(this)
         configPacksViewModel = ConfigPacksViewModel(configPackRepository)
@@ -185,4 +188,24 @@ class MainActivity : AppCompatActivity() {
         }
         startActivity(Intent.createChooser(sendIntent, "Share conversation text"))
     }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        Log.d("MainActivity", "onActivityResult called")
+
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == GoogleDriveHelper.RC_SIGN_IN) {
+            Log.d("MainActivity", "Handling onActivityResult for RC_SIGN_IN")
+            if (resultCode == Activity.RESULT_OK) {
+                Log.d("MainActivity", "signInResult:resultCode OK")
+            } else {
+                Log.w("MainActivity", "signInResult:resultCode not OK, resultCode=$resultCode")
+            }
+            googleDriveHelper.handleSignInResult(resultCode, data)
+        } else {
+            Log.d("MainActivity", "request code was $requestCode")
+        }
+    }
+
+
+
 }
