@@ -199,12 +199,6 @@ class SessionViewModel(
         }
     }
 
-    init {
-        Log.d("SessionViewModel", "init about to run `loadInitialConversation(conversationId)`")
-        loadInitialConversation(conversationId)
-        startPeriodicListeningCheck()
-    }
-
     fun loadConversationWithId(conversationId: UUID) {
         this.conversationId = conversationId
         loadInitialConversation()

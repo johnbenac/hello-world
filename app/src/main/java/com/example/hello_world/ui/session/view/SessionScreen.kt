@@ -111,7 +111,7 @@ fun SessionScreen(
 
         val messages = sessionViewModel.conversationMessages
         Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
-        sessionViewModel.autosaveConversation()
+//        sessionViewModel.autosaveConversation()
         LaunchedEffect(Unit) {
             if (scrollToBottomClicked.value) {
                 val targetIndex = messages.size - 1
