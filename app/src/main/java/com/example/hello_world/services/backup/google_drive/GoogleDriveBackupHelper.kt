@@ -1,15 +1,18 @@
-package com.example.hello_world.services.cloud_backup
+package com.example.hello_world.services.backup.google_drive
 
 import android.util.Log
 import android.app.Activity
 import android.content.Intent
+import com.example.hello_world.data.repository.IConversationRepository
+import com.example.hello_world.services.backup.IBackup
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 
-class GoogleDriveHelper(private val activity: Activity) {
+class GoogleDriveBackupHelper(
+    private val activity: Activity,
+) : IBackup {
     private lateinit var googleSignInClient: GoogleSignInClient
     fun authenticate() {
         Log.d("GoogleDriveHelper", "authenticate() called")
@@ -51,12 +54,16 @@ class GoogleDriveHelper(private val activity: Activity) {
         Log.d("GoogleDriveHelper", "TODO: Create a dedicated folder in Google Drive")
     }
 
-    fun backup() {
-        Log.d("GoogleDriveHelper", "TODO: Upload JSON (for conversation text) and audio files (associated with specific message cards) to Google Drive")
+    override suspend fun exportConversations(): String {
+        // TODO: Implement the logic to export conversations to Google Drive
+        // You can reuse the logic from LocalBackupHelper.exportConversations() and modify it to work with Google Drive
+        return ""
     }
 
-    fun restore() {
-        Log.d("GoogleDriveHelper", "TODO: Restore JSON backup and associated audio files from Google Drive")
+    override suspend fun importConversations(json: String) {
+        // TODO: Implement the logic to import conversations from Google Drive
+        // You can reuse the logic from LocalBackupHelper.importConversations(json: String) and modify it to work with Google Drive
+
     }
 
 

@@ -1,5 +1,6 @@
 package com.example.hello_world.ui.saved_conversations.viewmodel
 
+import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,7 @@ import com.example.hello_world.data.repository.IConversationRepository
 import com.example.hello_world.managers.ConversationsManager
 import com.example.hello_world.models.ConfigPack
 import com.example.hello_world.models.Conversation
+import com.example.hello_world.services.backup.google_drive.GoogleDriveBackupHelper
 import com.example.hello_world.services.local_backup.LocalBackupHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,9 +17,11 @@ import java.util.UUID
 
 class SavedConversationsViewModel(
     private val conversationRepository: IConversationRepository,
-    private val context: Context // Add the context parameter
+    private val context: Context,
+    private val activity: Activity
 ) : ViewModel() {
-    private val localBackupHelper = LocalBackupHelper(context, conversationRepository)
+    private val googleDriveBackupHelper = GoogleDriveBackupHelper(activity)
+    private val localBackupHelper = LocalBackupHelper(context)
     private val _savedConversations = MutableStateFlow<List<Conversation>>(emptyList())
     val savedConversations: StateFlow<List<Conversation>> = _savedConversations
     private val conversationsManager = ConversationsManager(conversationRepository)

@@ -35,11 +35,13 @@ import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 //import com.example.hello_world.data.repository.ExportData
 import com.example.hello_world.data.repository.IConversationRepository
+import com.example.hello_world.data.repository.LocalRoomConversationRepository
 import com.example.hello_world.data.repository.MutableStateStringJsonAdapter
 import com.example.hello_world.data.repository.UUIDJsonAdapter
 import com.example.hello_world.models.ConfigPack
 
 import com.example.hello_world.models.ConversationMessage
+import com.example.hello_world.services.backup.IBackup
 
 import kotlinx.coroutines.withContext
 
@@ -49,10 +51,8 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 
 
-class LocalBackupHelper(
-    private val context: Context,
-    private val conversationRepository: IConversationRepository
-) {
+class LocalBackupHelper(private val context: Context) : IBackup {
+    private val conversationRepository = LocalRoomConversationRepository(context)
     private val conversationDao = LocalConversationDatabase.getInstance(context).conversationDao()
     private val moshi = Moshi.Builder()
         .add(UUIDJsonAdapter())
@@ -60,7 +60,7 @@ class LocalBackupHelper(
         .add(KotlinJsonAdapterFactory())
         .build()
     // Add the exportConversations() method from LocalRoomConversationRepository.kt
-    suspend fun exportConversations(): String {
+    override suspend fun exportConversations(): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         // Load all conversations with messages
         val conversations = withContext(Dispatchers.IO) {
@@ -138,7 +138,7 @@ class LocalBackupHelper(
         return jsonString
     }
 
-    suspend fun importConversations(json: String) {
+    override suspend fun importConversations(json: String) {
         val exportData = moshi.adapter(ExportData::class.java).fromJson(json) ?: return
         exportData.conversations.forEach { importedConversation ->
             // Copy audio files back to the app's data folder
