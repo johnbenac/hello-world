@@ -25,8 +25,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".services.backup.google_drive.SignInActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
-        <!-- Add the FileProvider here -->
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.example.hello_world.provider"
