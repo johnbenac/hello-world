@@ -41,6 +41,7 @@ import com.example.hello_world.data.repository.UUIDJsonAdapter
 import com.example.hello_world.models.ConfigPack
 
 import com.example.hello_world.models.ConversationMessage
+import com.example.hello_world.services.backup.ExportData
 import com.example.hello_world.services.backup.IBackup
 
 import kotlinx.coroutines.withContext
@@ -220,6 +221,3 @@ class LocalBackupHelper(private val context: Context) : IBackup {
 }
 
 
-data class ExportData(
-    val conversations: List<Conversation>
-)
