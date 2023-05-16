@@ -298,4 +298,19 @@ class GoogleDriveBackupHelper(
             }
         }
     }
+
+
+
+    fun startRestore() {
+        Log.d("GoogleDriveHelper", "startRestore() called")
+        CoroutineScope(Dispatchers.IO).launch {
+            val isAuthenticated = authenticate().await()
+            if (isAuthenticated) {
+                importConversations("")
+            } else {
+                Log.w("GoogleDriveHelper", "Restore failed: Google Drive authentication failed")
+            }
+        }
+    }
+
 }
