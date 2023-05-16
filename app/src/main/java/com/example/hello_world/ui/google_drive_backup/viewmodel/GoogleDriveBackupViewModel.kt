@@ -15,12 +15,14 @@ class GoogleDriveBackupViewModel(private val activity: Activity) : ViewModel() {
     fun authenticate() {
         Log.d("GoogleDriveBackupVM", "authenticate() called")
         val signInIntent = Intent(activity, SignInActivity::class.java)
+        signInIntent.putExtra("action", "authenticate")
         activity.startActivity(signInIntent)
     }
 
-
     fun restore() {
         Log.d("GoogleDriveBackupVM", "restore() called")
-        googleDriveBackupHelper.startRestore()
+        val signInIntent = Intent(activity, SignInActivity::class.java)
+        signInIntent.putExtra("action", "restore")
+        activity.startActivity(signInIntent)
     }
 }

@@ -14,7 +14,13 @@ class SignInActivity : AppCompatActivity() {
         setContentView(R.layout.activity_sign_in)
 
         googleDriveBackupHelper = GoogleDriveBackupHelper(this)
-        googleDriveBackupHelper.authenticate()
+
+        val action = intent.getStringExtra("action")
+        if (action == "authenticate") {
+            googleDriveBackupHelper.authenticate()
+        } else if (action == "restore") {
+            googleDriveBackupHelper.startRestore()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -25,4 +31,6 @@ class SignInActivity : AppCompatActivity() {
             finish()
         }
     }
+
+
 }
