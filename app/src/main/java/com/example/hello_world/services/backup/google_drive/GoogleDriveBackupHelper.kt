@@ -86,9 +86,9 @@ class GoogleDriveBackupHelper(
         return@async authenticationResult.await()
     }
 
-    suspend fun isAuthenticated(): Boolean = withContext(Dispatchers.IO) {
-        return@withContext ::driveService.isInitialized
-    }
+//    suspend fun isAuthenticated(): Boolean = withContext(Dispatchers.IO) {
+//        return@withContext ::driveService.isInitialized
+//    }
 
 
     fun handleSignInResult(resultCode: Int, data: Intent?) {
@@ -177,18 +177,27 @@ class GoogleDriveBackupHelper(
     private fun createHelloWorldFolderAndFile() {
         CoroutineScope(Dispatchers.IO).launch {
             val folderId = findOrCreateHelloWorldFolder()
-            createHelloWorldFile(folderId)
+            val conversationDataJson = getConversationDataAsJson()
+            createHelloWorldFile(conversationDataJson, folderId)
+
+
+//            val conversationDataJson = getConversationDataAsJson()
+//
+//            val folderId = findOrCreateSessionBackupsFolder()
+//            saveJsonToGoogleDrive(conversationDataJson, folderId)
+
+
         }
     }
 
     private suspend fun findOrCreateHelloWorldFolder(): String = withContext(Dispatchers.IO) {
-        val query = "mimeType='application/vnd.google-apps.folder' and trashed=false and name='hello world'"
+        val query = "mimeType='application/vnd.google-apps.folder' and trashed=false and name='SessionBackups'"
         return@withContext try {
             val files: FileList = driveService.files().list().setQ(query).execute()
             if (files.files.isNotEmpty()) {
                 files.files[0].id
             } else {
-                createHelloWorldFolder()
+                createSessionBackupsFolder()
             }
         } catch (e: UserRecoverableAuthIOException) {
             // Start the activity to prompt the user for authorization
@@ -205,14 +214,13 @@ class GoogleDriveBackupHelper(
         return@withContext file.id
     }
 
-    private suspend fun createHelloWorldFile(folderId: String) = withContext(Dispatchers.IO) {
+    private suspend fun createHelloWorldFile(jsonString: String, folderId: String) = withContext(Dispatchers.IO) {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val fileMetadata = File()
-        fileMetadata.name = "$timestamp.txt"
+        fileMetadata.name = "conversation_backup_$timestamp.json"
         fileMetadata.parents = Collections.singletonList(folderId)
-        val content = "hello world"
-        val fileContent = ByteArrayInputStream(content.toByteArray(Charsets.UTF_8))
-        val mediaContent = InputStreamContent("text/plain", fileContent)
+        val fileContent = ByteArrayInputStream(jsonString.toByteArray(Charsets.UTF_8))
+        val mediaContent = InputStreamContent("application/json", fileContent)
         driveService.files().create(fileMetadata, mediaContent).setFields("id").execute()
     }
 
