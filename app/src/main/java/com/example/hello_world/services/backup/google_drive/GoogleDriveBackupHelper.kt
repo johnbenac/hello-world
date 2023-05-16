@@ -150,10 +150,10 @@ class GoogleDriveBackupHelper(
         }
     }
 
-    private fun getUserSelectedBackupFile(backupFiles: List<File>): String {
+    private suspend fun getUserSelectedBackupFile(backupFiles: List<File>): String {
         // Call the showBackupFilesDialog() method and return the selected file ID
         var selectedFileId = ""
-        activity.runOnUiThread {
+        withContext(Dispatchers.Main) {
             selectedFileId = showBackupFilesDialog(backupFiles)
         }
         return selectedFileId
