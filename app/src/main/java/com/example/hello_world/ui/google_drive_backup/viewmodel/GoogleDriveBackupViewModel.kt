@@ -18,17 +18,6 @@ class GoogleDriveBackupViewModel(private val activity: Activity) : ViewModel() {
         activity.startActivity(signInIntent)
     }
 
-    fun backup() {
-        Log.d("GoogleDriveBackupVM", "backup() called")
-        viewModelScope.launch {
-            val isAuthenticated = googleDriveBackupHelper.authenticate().await()
-            if (isAuthenticated) {
-                googleDriveBackupHelper.exportConversations()
-            } else {
-                Log.w("GoogleDriveBackupVM", "Backup failed: Google Drive authentication failed")
-            }
-        }
-    }
 
     fun restore() {
         Log.d("GoogleDriveBackupVM", "restore() called")

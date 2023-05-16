@@ -44,9 +44,7 @@ fun GoogleDriveBackupScreen(activityResultRegistry: ActivityResultRegistry) {
         }) {
             Text("Authenticate with Google")
         }
-        Button(onClick = { viewModel.backup() }) {
-            Text("Backup")
-        }
+
         Button(onClick = { viewModel.restore() }) {
             Text("Restore")
         }

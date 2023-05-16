@@ -58,8 +58,7 @@ class GoogleDriveBackupHelper(
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
     private val authenticationResults = mutableListOf<CompletableDeferred<Boolean>>()
     private val conversationRepository = LocalRoomConversationRepository(activity)
-//    val isAuthenticated: Boolean
-//        get() = ::driveService.isInitialized
+
     private val conversationDao = LocalConversationDatabase.getInstance(activity).conversationDao()
     private val moshi = Moshi.Builder()
         .add(UUIDJsonAdapter())
@@ -86,13 +85,10 @@ class GoogleDriveBackupHelper(
         return@async authenticationResult.await()
     }
 
-//    suspend fun isAuthenticated(): Boolean = withContext(Dispatchers.IO) {
-//        return@withContext ::driveService.isInitialized
-//    }
 
 
     fun handleSignInResult(resultCode: Int, data: Intent?) {
-        Log.d("GoogleDriveHelper", "handleSignInResult() called with resultCode=$resultCode") // Add this log statement
+        Log.d("GoogleDriveHelper", "handleSignInResult() called with resultCode=$resultCode")
         if (resultCode == Activity.RESULT_OK) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             try {
@@ -100,7 +96,11 @@ class GoogleDriveBackupHelper(
                 // Signed in successfully, you can now access the Google Drive API using the account object
                 Log.d("GoogleDriveHelper", "Signed in successfully: ${account?.displayName}, email: ${account?.email}")
                 setupDriveService(account)
-                createHelloWorldFolderAndFile()
+
+                // Launch a coroutine to call exportConversations()
+                CoroutineScope(Dispatchers.IO).launch {
+                    exportConversations()
+                }
 
                 // Complete the authentication result with true (success)
                 authenticationResults.forEach { it.complete(true) }
@@ -123,14 +123,6 @@ class GoogleDriveBackupHelper(
         const val REQUEST_AUTHORIZATION = 9002
     }
 
-    override suspend fun exportConversations(): String {
-        val conversationDataJson = getConversationDataAsJson()
-
-        val folderId = findOrCreateSessionBackupsFolder()
-        saveJsonToGoogleDrive(conversationDataJson, folderId)
-
-        return "Backup successful"
-    }
 
     override suspend fun importConversations(json: String) {
         val folderId = findOrCreateSessionBackupsFolder()
@@ -174,20 +166,17 @@ class GoogleDriveBackupHelper(
         driveService = Drive.Builder(AndroidHttp.newCompatibleTransport(), GsonFactory(), credential).setApplicationName("Hello World").build()
     }
 
-    private fun createHelloWorldFolderAndFile() {
+    override suspend fun exportConversations(): String {
         CoroutineScope(Dispatchers.IO).launch {
             val folderId = findOrCreateHelloWorldFolder()
             val conversationDataJson = getConversationDataAsJson()
             createHelloWorldFile(conversationDataJson, folderId)
 
 
-//            val conversationDataJson = getConversationDataAsJson()
-//
-//            val folderId = findOrCreateSessionBackupsFolder()
-//            saveJsonToGoogleDrive(conversationDataJson, folderId)
 
 
         }
+        return "Backup successful"
     }
 
     private suspend fun findOrCreateHelloWorldFolder(): String = withContext(Dispatchers.IO) {
@@ -206,13 +195,7 @@ class GoogleDriveBackupHelper(
         }
     }
 
-    private suspend fun createHelloWorldFolder(): String = withContext(Dispatchers.IO) {
-        val fileMetadata = File()
-        fileMetadata.name = "hello world"
-        fileMetadata.mimeType = "application/vnd.google-apps.folder"
-        val file = driveService.files().create(fileMetadata).setFields("id").execute()
-        return@withContext file.id
-    }
+
 
     private suspend fun createHelloWorldFile(jsonString: String, folderId: String) = withContext(Dispatchers.IO) {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -232,15 +215,7 @@ class GoogleDriveBackupHelper(
         return@withContext file.id
     }
 
-    private suspend fun saveJsonToGoogleDrive(jsonString: String, folderId: String) = withContext(Dispatchers.IO) {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileMetadata = File()
-        fileMetadata.name = "conversation_backup_$timestamp.json"
-        fileMetadata.parents = Collections.singletonList(folderId)
-        val fileContent = ByteArrayInputStream(jsonString.toByteArray(Charsets.UTF_8))
-        val mediaContent = InputStreamContent("application/json", fileContent)
-        driveService.files().create(fileMetadata, mediaContent).setFields("id").execute()
-    }
+
 
     private suspend fun listBackupFilesInFolder(folderId: String): List<File> = withContext(Dispatchers.IO) {
         val query = "mimeType='application/json' and trashed=false and parents in '$folderId'"
