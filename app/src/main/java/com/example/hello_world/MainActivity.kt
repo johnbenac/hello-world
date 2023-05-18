@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var textToSpeechService: TextToSpeechService? = null
     private var voiceTriggerDetector: VoiceTriggerDetector? = null
     private lateinit var openAiApiService: OpenAiApiService
-//    private lateinit var googleDriveBackupHelper: GoogleDriveBackupHelper
+
 
     private val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1
 
@@ -72,12 +72,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestAudioPermission()
-//        googleDriveBackupHelper = GoogleDriveBackupHelper(this)
+
         configPackRepository = LocalRoomConfigPackRepository(this)
         conversationRepository = LocalRoomConversationRepository(this)
         configPacksViewModel = ConfigPacksViewModel(configPackRepository)
         textToSpeechServiceState = mutableStateOf(
-            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.startListening() })
+            AndroidTextToSpeechService(this, mediaPlaybackManager) { sessionViewModel.beginListening() })
         snackbarHostState = SnackbarHostState()
 
         openAiApiService = OpenAiApiService("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", configPacksViewModel)
@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        voiceTriggerDetector = sessionViewModel.voiceTriggerDetector
+//        voiceTriggerDetector = sessionViewModel.listeningManager
 
         setContent {
             Log.d("MainActivity", "Current SessionViewModel instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        voiceTriggerDetector?.startListening()
+        voiceTriggerDetector?.beginListening()
     }
     override fun onPause() {
         super.onPause()
@@ -189,21 +189,6 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(sendIntent, "Share conversation text"))
     }
 
-//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-//        Log.d("MainActivity", "onActivityResult called")
-//
-//        super.onActivityResult(requestCode, resultCode, data)
-//        if (requestCode == GoogleDriveBackupHelper.RC_SIGN_IN) {
-//            Log.d("MainActivity", "Handling onActivityResult for RC_SIGN_IN")
-//            if (resultCode == Activity.RESULT_OK) {
-//                Log.d("MainActivity", "signInResult:resultCode OK")
-//            } else {
-//                Log.w("MainActivity", "signInResult:resultCode not OK, resultCode=$resultCode")
-//            }
-//            googleDriveBackupHelper.handleSignInResult(resultCode, data)
-//        } else {
-//            Log.d("MainActivity", "request code was $requestCode")
-//        }
-//    }
+
 
 }

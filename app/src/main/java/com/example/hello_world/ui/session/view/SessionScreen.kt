@@ -241,7 +241,7 @@ fun SessionScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = if (sessionViewModel.isListening) "Listening..." else "Not Listening",
+                text = if (sessionViewModel.isCurrentlyListening) "Listening..." else "Not Listening",
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -253,14 +253,14 @@ fun SessionScreen(
                             voiceId = "TxGEqnHWrfWFTfGW9XjX",
                             context = context,
                             mediaPlaybackManager = mediaPlaybackManager,
-                            onPlaybackFinished = { sessionViewModel.startListening() },
+                            onPlaybackFinished = { sessionViewModel.beginListening() },
                             snackbarHostState = snackbarHostState // Pass snackbarHostState here
                         )
                     } else {
                         textToSpeechServiceState.value = AndroidTextToSpeechService(
                             context = context,
                             mediaPlaybackManager = mediaPlaybackManager,
-                            onPlaybackFinished = { sessionViewModel.startListening() }
+                            onPlaybackFinished = { sessionViewModel.beginListening() }
                         )
                     }
                 },
@@ -270,19 +270,19 @@ fun SessionScreen(
             }
             Button(
                 onClick = {
-                    if (sessionViewModel.isListening) {
-                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
-                        sessionViewModel.stopListening()
-                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is true, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                    if (sessionViewModel.isCurrentlyListening) {
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isCurrentlyListening is true, before the sessionViewModel.beginListening() line in the lambda function, isCurrentlyListening: ${sessionViewModel.isCurrentlyListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.endListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isCurrentlyListening is true, after the sessionViewModel.beginListening() line in the lambda function, isCurrentlyListening: ${sessionViewModel.isCurrentlyListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
                     } else {
-                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, before the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
-                        sessionViewModel.startListening()
-                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isListening is false, after the sessionViewModel.startListening() line in the lambda function, isListening: ${sessionViewModel.isListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isCurrentlyListening is false, before the sessionViewModel.beginListening() line in the lambda function, isCurrentlyListening: ${sessionViewModel.isCurrentlyListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
+                        sessionViewModel.beginListening()
+                        Log.d("SessionScreen", "Start/Stop Listening button clicked when sessionViewModel.isCurrentlyListening is false, after the sessionViewModel.beginListening() line in the lambda function, isCurrentlyListening: ${sessionViewModel.isCurrentlyListening}, instance: ${sessionViewModel}, memory location: ${System.identityHashCode(sessionViewModel)}")
                     }
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text(if (sessionViewModel.isListening) "Stop Listening" else "Start Listening")
+                Text(if (sessionViewModel.isCurrentlyListening) "Stop Listening" else "Start Listening")
             }
             Button(
                 onClick = onSettingsClicked,

@@ -20,13 +20,13 @@ class VoiceTriggerDetector(
     private val latestPartialResult: MutableState<String?> 
 ) : RecognitionListener {
     private val speechRecognizer: SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-    private var keepListening: Boolean = true
+//    private var keepListening: Boolean = true
 
     init {
         speechRecognizer.setRecognitionListener(this)
     }
 
-    fun startListening() {
+    fun beginListening() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
@@ -35,7 +35,7 @@ class VoiceTriggerDetector(
         speechRecognizer.startListening(intent)
     }
 
-    fun stopListening() {
+    fun endListening() {
         speechRecognizer.stopListening()
         Log.d("VoiceTriggerDetector", "log: within the stoplistening function, speechRecognizer.stopListening() was just called")
     }
@@ -70,9 +70,10 @@ class VoiceTriggerDetector(
         matches?.let { processResults(it) }
     
         // Restart listening if the trigger word is not detected and the flag is set to keep listening
-        if (keepListening) {
-            mainHandler.post { startListening() }
-        }
+//        if (keepListening) {
+//            Log.d("VoiceTriggerDetector", "trigger word not detected, beginListening() invocation called")
+//            mainHandler.post { beginListening() }
+//        }
     }
 
     override fun onPartialResults(partialResults: Bundle) {
@@ -83,7 +84,7 @@ class VoiceTriggerDetector(
         // Set the latest partial result
         latestPartialResult.value = matches?.firstOrNull()
     
-        // Remove the startListening() call from here
+
     }
 
     override fun onEvent(eventType: Int, params: Bundle) {

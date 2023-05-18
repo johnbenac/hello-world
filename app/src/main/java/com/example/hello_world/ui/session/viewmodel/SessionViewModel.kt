@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.runtime.MutableState
+import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.hello_world.managers.ConversationManager
@@ -18,6 +19,8 @@ import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import com.example.hello_world.services.text_to_speech.TextToSpeechService
 import com.example.hello_world.services.speech_to_text.VoiceTriggerDetector
 import com.example.hello_world.data.repository.IConversationRepository
+import com.example.hello_world.managers.ListeningManager
+import com.example.hello_world.managers.ListeningState
 import com.example.hello_world.models.ConfigPack
 import com.example.hello_world.models.Conversation
 import com.example.hello_world.services.media_playback.AndroidMediaPlaybackManager
@@ -35,10 +38,30 @@ class SessionViewModel(
     val conversationRepository: IConversationRepository,
     var textToSpeechServiceState: MutableState<TextToSpeechService>?,
     private val snackbarHostState: SnackbarHostState
-) : ViewModel() {
+) : ViewModel(), LifecycleObserver {
 
+    val listeningManager: ListeningManager
+    val isCurrentlyListening: Boolean get() = listeningManager.listeningState == ListeningState.LISTENING
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     val latestPartialResult = mutableStateOf<String?>(null)
+
+    init {
+        listeningManager = ListeningManager(
+            context = context,
+            triggerWord = "Hey",
+            onTriggerWordDetected = { userMessage ->
+                viewModelScope.launch {
+                    sendUserMessageToOpenAi(userMessage)
+                }
+            },
+            mainHandler = mainHandler,
+            latestPartialResult = latestPartialResult
+        )
+    }
+
+
+//    val latestPartialResult = mutableStateOf<String?>(null)
     val _isAppSpeaking = mutableStateOf(false)
     val mediaPlaybackManager: MediaPlaybackManager = AndroidMediaPlaybackManager()
     private val conversationsManager = ConversationsManager(conversationRepository)
@@ -47,8 +70,7 @@ class SessionViewModel(
     val showSaveDialog = mutableStateOf(false)
     val saveDialogTitle = mutableStateOf("")
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    val voiceTriggerDetector = VoiceTriggerDetector(context, "Hey", this::onTriggerWordDetected, mainHandler, this.latestPartialResult)
+//    private val mainHandler = Handler(Looper.getMainLooper())
 
     val conversationMessages = mutableStateListOf<ConversationMessage>().apply {
         addAll(conversationManager.conversation.messages)
@@ -89,15 +111,13 @@ class SessionViewModel(
         }
     }
 
-    fun startListening() {
-        voiceTriggerDetector.startListening()
-        _isListening.value = true
-//        Log.d("SessionViewModel", "fun startListening startListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
+    fun beginListening() {
+        listeningManager.beginListening()
     }
     private suspend fun sendUserMessageToOpenAi(userMessage: String) {
 
 
-        stopListening()
+        endListening()
         val audioFilePathState = mutableStateOf("")
 
 
@@ -127,13 +147,13 @@ class SessionViewModel(
             if (conversationManager.conversation.messages.isNotEmpty()) {
             mainHandler.post {
                 _isAppSpeaking.value = false
-                startListening()
-                Log.d("SessionViewModel", "log: startListening called associated with onFinish")
+                beginListening()
+                Log.d("SessionViewModel", "log: beginListening called associated with onFinish")
             }
         }}, onStart = {
             mainHandler.post {
-                stopListening()
-                Log.d("SessionViewModel", "log: stopListening called associated with onStart")
+                endListening()
+                Log.d("SessionViewModel", "log: endListening called associated with onStart")
             }
         }, audioFilePathState = assistantMessageObj.audioFilePath)
         _isAppSpeaking.value = true
@@ -161,36 +181,11 @@ class SessionViewModel(
         }
     }
 
-    private fun startPeriodicListeningCheck() {
-        mainHandler.postDelayed({
-            if (_isListening.value && _isAppSpeaking.value) {
-//                Log.d("SessionViewModel", "log: Periodic check - Restarting listening, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
-                startListening()
-            }
-            startPeriodicListeningCheck()
-        }, 3000) // Check every 3 seconds
+
+    fun endListening() {
+        listeningManager.endListening()
     }
 
-    fun stopListening() {
-        voiceTriggerDetector.stopListening()
-        Log.d("SessionViewModel", "stopListening() called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
-        _isListening.value = false
-    }
-
-    fun onTriggerWordDetected(userMessage: String) {
-
-        Log.d("SessionViewModel", "log: onTriggerWordDetected called")
-
-
-        voiceTriggerDetector.stopListening()
-        Log.d("SessionViewModel", "log: from within the OnTriggerWordDetected function, `voiceTriggerDetector.stopListening()` was just called, isListening: $isListening, instance: $this, memory location: ${System.identityHashCode(this)}")
-
-
-        viewModelScope.launch {
-            sendUserMessageToOpenAi(userMessage)
-        }
-        autosaveConversation()
-    }
 
     fun loadConversation(conversationId: UUID) {
     Log.d("SessionViewModel", "fun loadConversation Loaded conversation ID: ${conversationId}")
