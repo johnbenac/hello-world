@@ -42,21 +42,24 @@ class ListeningManager(
         speechRecognizer.setRecognitionListener(voiceTriggerDetector)
     }
 
-    fun beginListening() {
+    fun beginListening(): ListeningState {
         if (listeningState == ListeningState.IDLE) {
             _listeningState.value = ListeningState.LISTENING
             voiceTriggerDetector.beginListening()
             Log.d("ListeningManager", "log: within the beginListening function, voiceTriggerDetector.beginListening() was just invoked")
         }
+        return listeningState
     }
 
-    fun endListening() {
+    fun endListening(): ListeningState {
         if (listeningState == ListeningState.LISTENING) {
             _listeningState.value = ListeningState.IDLE
             voiceTriggerDetector.endListening()
             Log.d("ListeningManager", "log: within the beginListening function, voiceTriggerDetector.endListening() was just invoked")
         }
+        return listeningState
     }
+
 
     private fun handleTriggerWordDetected(userMessage: String) {
         _listeningState.value = ListeningState.PROCESSING

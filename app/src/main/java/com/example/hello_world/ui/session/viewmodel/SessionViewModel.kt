@@ -158,12 +158,14 @@ class SessionViewModel(
         }, audioFilePathState = assistantMessageObj.audioFilePath)
         _isAppSpeaking.value = true
         autosaveConversation()
+        Log.d("SessionViewModel", "log: autosaveConversation() invoked at the end of sendUserMessageToOpenAi() function")
     }
 
     fun updateMessage(index: Int, updatedMessage: ConversationMessage) {
         conversationManager.updateMessage(index, updatedMessage)
         conversationMessages[index] = updatedMessage
         autosaveConversation()
+        Log.d("SessionViewModel", "log: autosaveConversation() invoked at the end of updateMessage() function")
     }
 
     fun deleteMessage(index: Int) {
@@ -200,26 +202,7 @@ class SessionViewModel(
     }
 
 
-    fun saveConversation() {
-        showSaveDialog.value = true
-    }
 
-    fun onSaveDialogConfirmed() {
-        if (saveDialogTitle.value.isNotBlank()) {
-            viewModelScope.launch {
-                val updatedConversation = conversationManager.conversation.copy(title = saveDialogTitle.value)
-                conversationsManager.saveConversation(conversationManager.conversation)
-                conversationManager.conversation = updatedConversation
-            }
-            showSaveDialog.value = false
-            saveDialogTitle.value = ""
-        }
-    }
-
-    fun onSaveDialogDismissed() {
-        showSaveDialog.value = false
-        saveDialogTitle.value = ""
-    }
 }
 
 class SessionViewModelFactory(

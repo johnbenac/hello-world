@@ -305,12 +305,6 @@ fun SessionScreen(
                 Text("Saved Conversations")
             }
             Button(
-                onClick = { sessionViewModel.saveCurrentConversation() },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text("Save Conversation")
-            }
-            Button(
                 onClick = {
                     // Get the "system" message from the selected config pack
                     val systemMessage = "System: ${configPacksViewModel.selectedConfigPack?.systemMessage}\n"

@@ -71,8 +71,7 @@ class VoiceTriggerDetector(
     
         // Restart listening if the trigger word is not detected and the flag is set to keep listening
 //        if (keepListening) {
-//            Log.d("VoiceTriggerDetector", "trigger word not detected, beginListening() invocation called")
-//            mainHandler.post { beginListening() }
+
 //        }
     }
 
@@ -101,6 +100,10 @@ class VoiceTriggerDetector(
                 val userMessage = result.replace(Regex("(?i)$triggerWord"), "").trim() // Use a regex to remove the trigger word and extra spaces
                 onTriggerWordDetected(userMessage) // Pass the user message here
                 break
+            } else {
+
+                Log.d("VoiceTriggerDetector", "trigger word not detected, beginListening() invocation called")
+                beginListening()
             }
         }
     }
