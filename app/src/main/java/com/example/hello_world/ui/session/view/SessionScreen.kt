@@ -58,6 +58,7 @@ import com.example.hello_world.ui.ConfigPacks.viewmodel.ConfigPacksViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import androidx.compose.foundation.focusable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -112,17 +113,23 @@ fun SessionScreen(
         val messages = sessionViewModel.conversationMessages
         Log.d("SessionScreen", "Number of messages in session screen: ${messages.size}")
 //        sessionViewModel.autosaveConversation()
-        LaunchedEffect(Unit) {
+        SideEffect {
             if (scrollToBottomClicked.value) {
+                Log.d("SessionScreen", "Inside SideEffect block, scrollToBottomClicked.value is true")
                 val targetIndex = messages.size - 1
-                try {
-                    lazyListState.animateScrollToItem(targetIndex)
-                } catch (e: Exception) {
-                    Log.e("SessionScreen", "Error while animating scroll to item", e)
+                coroutineScope.launch {
+                    try {
+                        Log.d("SessionScreen", "Before animateScrollToItem, targetIndex: $targetIndex")
+                        lazyListState.animateScrollToItem(targetIndex)
+                        Log.d("SessionScreen", "After animateScrollToItem, targetIndex: $targetIndex")
+                    } catch (e: Exception) {
+                        Log.e("SessionScreen", "Error while animating scroll to item", e)
+                    }
+                    scrollToBottomClicked.value = false
                 }
-                scrollToBottomClicked.value = false
+            } else {
+                Log.d("SessionScreen", "Inside SideEffect block, scrollToBottomClicked.value is false")
             }
-            Log.d("SessionScreen", "Current messages in session screen: $messages")
         }
         val maxHeight = constraints.maxHeight
         Column(modifier = Modifier.fillMaxSize()) {
@@ -292,7 +299,10 @@ fun SessionScreen(
             }
             Button(
                 onClick = {
-                    scrollToBottomClicked.value = true
+                    Log.d("SessionScreen", "scrollToBottomClicked")
+                    val targetIndex = messages.size - 1
+                    lazyListState.firstVisibleItemIndex = targetIndex
+                    lazyListState.firstVisibleItemScrollOffset = 0
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
